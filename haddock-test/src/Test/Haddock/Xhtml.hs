@@ -1,3 +1,7 @@
+{-# LANGUAGE RecordWildCards #-}
+{-# LANGUAGE StandaloneDeriving #-}
+{-# OPTIONS_GHC -fno-warn-orphans #-}
+
 module Test.Haddock.Xhtml
     ( Xml
     , parseXml, dumpXml
@@ -21,6 +25,10 @@ import Data.Char ( isSpace )
 
 -- | Simple wrapper around the pretty-printed HTML source
 newtype Xml = Xml { unXml :: String }
+
+deriving instance Eq Element
+deriving instance Eq Content
+deriving instance Eq CData
 
 -- | Part of parsing involves dropping the @DOCTYPE@ line
 parseXml :: String -> Maybe Xml
