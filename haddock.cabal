@@ -79,7 +79,11 @@ executable haddock
       Cabal >= 1.10,
       ghc-boot,
       ghc-boot-th,
+<<<<<<< HEAD
       ghc == 8.11.*,
+=======
+      ghc == 8.9.*,
+>>>>>>> 97b3d3df... Bump ghc version to 8.9
       bytestring,
       parsec,
       text,
