@@ -71,7 +71,7 @@ ppDecl summ links (L loc decl) pats (mbDoc, fnArgsDoc) instances fixities subdoc
 
 
 ppLFunSig :: Bool -> LinksInfo -> SrcSpan -> DocForDecl DocName ->
-             [Located DocName] -> LHsType DocNameI -> [(DocName, Fixity)] ->
+             [LocatedA DocName] -> LHsType DocNameI -> [(DocName, Fixity)] ->
              Splice -> Unicode -> Maybe Package -> Qualification -> Html
 ppLFunSig summary links loc doc lnames lty fixities splice unicode pkg qual =
   ppFunSig summary links loc doc (map unLoc lnames) lty fixities
@@ -88,7 +88,7 @@ ppFunSig summary links loc doc docnames typ fixities splice unicode pkg qual =
 
 -- | Pretty print a pattern synonym
 ppLPatSig :: Bool -> LinksInfo -> SrcSpan -> DocForDecl DocName
-          -> [Located DocName]     -- ^ names of patterns in declaration
+          -> [LocatedA DocName]    -- ^ names of patterns in declaration
           -> LHsType DocNameI      -- ^ type of patterns in declaration
           -> [(DocName, Fixity)]
           -> Splice -> Unicode -> Maybe Package -> Qualification -> Html
@@ -338,7 +338,7 @@ ppPseudoFamDecl links splice
                                   , pfdTyVars = tvs
                                   , pfdLName = L loc name })
                 unicode qual =
-    topDeclElem links loc splice [name] leader
+    topDeclElem links (locA loc) splice [name] leader
   where
     leader = hsep [ ppFamilyLeader True info
                   , ppAppNameTypes name (map unLoc tvs) unicode qual
@@ -480,7 +480,7 @@ ppHsContext cxt unicode qual = parenList (map (ppType unicode qual HideEmptyCont
 
 
 ppClassHdr :: Bool -> Located [LHsType DocNameI] -> DocName
-           -> LHsQTyVars DocNameI -> [Located ([Located DocName], [Located DocName])]
+           -> LHsQTyVars DocNameI -> [Located ([LocatedA DocName], [LocatedA DocName])]
            -> Unicode -> Qualification -> Html
 ppClassHdr summ lctxt n tvs fds unicode qual =
   keyword "class"
@@ -489,7 +489,7 @@ ppClassHdr summ lctxt n tvs fds unicode qual =
   <+> ppFds fds unicode qual
 
 
-ppFds :: [Located ([Located DocName], [Located DocName])] -> Unicode -> Qualification -> Html
+ppFds :: [Located ([LocatedA DocName], [LocatedA DocName])] -> Unicode -> Qualification -> Html
 ppFds fds unicode qual =
   if null fds then noHtml else
         char '|' <+> hsep (punctuate comma (map (fundep . unLoc) fds))
@@ -690,7 +690,7 @@ ppInstanceSigs links splice unicode qual sigs = do
         L _ rtyp = hsSigWcType typ
     -- Instance methods signatures are synified and thus don't have a useful
     -- SrcSpan value. Use the methods name location instead.
-    return $ ppSimpleSig links splice unicode qual HideEmptyContexts (getLoc $ head $ lnames) names rtyp
+    return $ ppSimpleSig links splice unicode qual HideEmptyContexts (locA $ getLoc $ head $ lnames) names rtyp
 
 
 lookupAnySubdoc :: Eq id1 => id1 -> [(id1, DocForDecl id2)] -> DocForDecl id2
@@ -1011,7 +1011,7 @@ ppShortField summary unicode qual (ConDeclField _ names ltype _)
 
 -- | Pretty print an expanded pattern (for bundled patterns)
 ppSideBySidePat :: [(DocName, Fixity)] -> Unicode -> Qualification
-                   -> [Located DocName]    -- ^ pattern name(s)
+                   -> [LocatedA DocName]   -- ^ pattern name(s)
                    -> LHsSigType DocNameI  -- ^ type of pattern(s)
                    -> DocForDecl DocName   -- ^ doc map
                    -> SubDecl

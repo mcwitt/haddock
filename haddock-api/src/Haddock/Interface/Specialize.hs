@@ -76,7 +76,7 @@ specializeSig :: LHsQTyVars GhcRn -> [HsType GhcRn]
               -> Sig GhcRn
               -> Sig GhcRn
 specializeSig bndrs typs (TypeSig _ lnames typ) =
-  TypeSig noExtField lnames (typ {hswc_body = (hswc_body typ) {hsib_body = noLoc typ'}})
+  TypeSig noAnn lnames (typ {hswc_body = (hswc_body typ) {hsib_body = noLoc typ'}})
   where
     true_type :: HsType GhcRn
     true_type = unLoc (hsSigWcType typ)
@@ -112,7 +112,7 @@ sugar = sugarOperators . sugarTuples . sugarLists
 
 sugarLists :: NamedThing (IdP (GhcPass p)) => HsType (GhcPass p) -> HsType (GhcPass p)
 sugarLists (HsAppTy _ (L _ (HsTyVar _ _ (L _ name))) ltyp)
-    | getName name == listTyConName = HsListTy noExtField ltyp
+    | getName name == listTyConName = HsListTy noAnn ltyp
 sugarLists typ = typ
 
 
@@ -123,7 +123,7 @@ sugarTuples typ =
     aux apps (HsAppTy _ (L _ ftyp) atyp) = aux (atyp:apps) ftyp
     aux apps (HsParTy _ (L _ typ')) = aux apps typ'
     aux apps (HsTyVar _ _ (L _ name))
-        | isBuiltInSyntax name' && suitable = HsTupleTy noExtField HsBoxedTuple apps
+        | isBuiltInSyntax name' && suitable = HsTupleTy noAnn HsBoxedTuple apps
       where
         name' = getName name
         strName = getOccString name
@@ -136,7 +136,7 @@ sugarTuples typ =
 sugarOperators :: NamedThing (IdP (GhcPass p)) => HsType (GhcPass p) -> HsType (GhcPass p)
 sugarOperators (HsAppTy _ (L _ (HsAppTy _ (L _ (HsTyVar _ _ (L l name))) la)) lb)
     | isSymOcc $ getOccName name' = mkHsOpTy la (L l name) lb
-    | funTyConName == name' = HsFunTy noExtField la lb
+    | funTyConName == name' = HsFunTy noAnn la lb
   where
     name' = getName name
 sugarOperators typ = typ
@@ -344,8 +344,9 @@ alternativeNames name =
     str = nameRepString name
 
 
-located :: Functor f => (a -> f b) -> Located a -> f (Located b)
+located :: Functor f => (a -> f b) -> GenLocated l a -> f (GenLocated l b)
 located f (L loc e) = L loc <$> f e
+
 
 
 tyVarName :: HsTyVarBndr name -> IdP name
