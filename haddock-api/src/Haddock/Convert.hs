@@ -89,7 +89,7 @@ tyThingToLHsDecl prr t = case t of
            extractFamDefDecl fd rhs =
              TyFamInstDecl $ HsIB { hsib_ext = hsq_ext (fdTyVars fd)
                                   , hsib_body = FamEqn
-             { feqn_ext = noExtField
+             { feqn_ext = noAnn
              , feqn_tycon = fdLName fd
              , feqn_bndrs = Nothing
              , feqn_pats = map (HsValArg . hsLTyVarBndrToType) $
@@ -154,7 +154,7 @@ synifyAxBranch tc (CoAxBranch { cab_tvs = tkvs, cab_lhs = args, cab_rhs = rhs })
                                    args_types_only typats
         hs_rhs          = synifyType WithinType [] rhs
     in HsIB { hsib_ext = map tyVarName tkvs
-            , hsib_body   = FamEqn { feqn_ext    = noExtField
+            , hsib_body   = FamEqn { feqn_ext    = noAnn
                                    , feqn_tycon  = name
                                    , feqn_bndrs  = Nothing
                                        -- TODO: this must change eventually
@@ -200,7 +200,7 @@ synifyTyCon prr _coax tc
            , tcdDataDefn = HsDataDefn { dd_ext = noExtField
                                       , dd_ND = DataType  -- arbitrary lie, they are neither
                                                     -- algebraic data nor newtype:
-                                      , dd_ctxt = noLoc []
+                                      , dd_ctxt = noLocA []
                                       , dd_cType = Nothing
                                       , dd_kindSig = synifyDataTyConReturnKind tc
                                                -- we have their kind accurately:
@@ -224,7 +224,7 @@ synifyTyCon _prr _coax tc
       ClosedSynFamilyTyCon mb
         | Just (CoAxiom { co_ax_branches = branches }) <- mb
           -> mkFamDecl $ ClosedTypeFamily $ Just
-            $ map (noLoc . synifyAxBranch tc) (fromBranches branches)
+            $ map (noLocA . synifyAxBranch tc) (fromBranches branches)
         | otherwise
           -> mkFamDecl $ ClosedTypeFamily $ Just []
       BuiltInSynFamTyCon {}
@@ -328,7 +328,7 @@ synifyInjectivityAnn Nothing _ _            = Nothing
 synifyInjectivityAnn _       _ NotInjective = Nothing
 synifyInjectivityAnn (Just lhs) tvs (Injective inj) =
     let rhs = map (noLocA . tyVarName) (filterByList inj tvs)
-    in Just $ noLoc $ InjectivityAnn (noLocA lhs) rhs
+    in Just $ noLoc $ InjectivityAnn noAnn (noLocA lhs) rhs
 
 synifyFamilyResultSig :: Maybe Name -> Kind -> LFamilyResultSig GhcRn
 synifyFamilyResultSig  Nothing    kind
@@ -432,7 +432,7 @@ synifyTcIdSig vs (i, dm) =
     defSig t = synifySigType ImplicitizeForAll vs t
 
 synifyCtx :: [PredType] -> LHsContext GhcRn
-synifyCtx = noLoc . map (synifyType WithinType [])
+synifyCtx = noLocA . map (synifyType WithinType [])
 
 
 synifyTyVars :: [TyVar] -> LHsQTyVars GhcRn

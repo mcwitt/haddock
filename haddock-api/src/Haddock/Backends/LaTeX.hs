@@ -378,10 +378,10 @@ ppFamHeader (FamilyDecl { fdLName = L _ name
 
     injAnn = case injectivity of
       Nothing -> empty
-      Just (L _ (InjectivityAnn lhs rhs)) -> hsep ( decltt (text "|")
-                                                  : ppLDocName lhs
-                                                  : arrow unicode
-                                                  : map ppLDocName rhs)
+      Just (L _ (InjectivityAnn _ lhs rhs)) -> hsep ( decltt (text "|")
+                                                    : ppLDocName lhs
+                                                    : arrow unicode
+                                                    : map ppLDocName rhs)
 
 
 
@@ -571,7 +571,7 @@ rDoc = maybeDoc . fmap latexStripTrailingWhitespace
 -------------------------------------------------------------------------------
 
 
-ppClassHdr :: Bool -> Located [LHsType DocNameI] -> DocName
+ppClassHdr :: Bool -> LocatedA [LHsType DocNameI] -> DocName
            -> LHsQTyVars DocNameI -> [Located ([LocatedA DocName], [LocatedA DocName])]
            -> Bool -> LaTeX
 ppClassHdr summ lctxt n tvs fds unicode =
@@ -762,7 +762,7 @@ ppSideBySideConstr subdocs unicode leader (L _ con) =
                 , con_ex_tvs = vars
                 , con_mb_cxt = cxt
                 } -> let tyVars = map (getName . hsLTyVarNameI) vars
-                         context = unLoc (fromMaybe (noLoc []) cxt)
+                         context = unLoc (fromMaybe (noLocA []) cxt)
                          forall_ = False
                          header_ = ppConstrHdr forall_ tyVars context unicode
                      in case det of
@@ -936,7 +936,7 @@ ppTypeApp n ts ppDN ppT = ppDN n <+> hsep (map ppT ts)
 -------------------------------------------------------------------------------
 
 
-ppLContext, ppLContextNoArrow :: Located (HsContext DocNameI) -> Bool -> LaTeX
+ppLContext, ppLContextNoArrow :: LHsContext DocNameI -> Bool -> LaTeX
 ppLContext        = ppContext        . unLoc
 ppLContextNoArrow = ppContextNoArrow . unLoc
 

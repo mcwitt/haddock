@@ -128,7 +128,7 @@ createInterface tm flags modMap instIfaceMap = do
                         $  map getName instances
                         ++ map getName fam_instances
       -- Locations of all TH splices
-      splices = [ l | L l (SpliceD _ _) <- hsmodDecls hsm ]
+      splices = [ locA l | L l (SpliceD _ _) <- hsmodDecls hsm ]
 
   warningMap <- liftErrMsg (mkWarningMap dflags warnings gre exportedNames)
 
@@ -376,7 +376,7 @@ mkMaps dflags pkgName gre instances decls = do
                         , [(Name, Map Int (MDoc Name))]
                         , [(Name,  [LHsDecl GhcRn])]
                         )
-    mappings (ldecl@(L (RealSrcSpan l _) decl), docStrs) = do
+    mappings (ldecl@(L (SrcSpanAnn _ (RealSrcSpan l _)) decl), docStrs) = do
       let declDoc :: [HsDocString] -> Map Int HsDocString
                   -> ErrMsgM (Maybe (MDoc Name), Map Int (MDoc Name))
           declDoc strs m = do
@@ -405,7 +405,7 @@ mkMaps dflags pkgName gre instances decls = do
         seqList subDocs `seq`
         seqList subArgs `seq`
         pure (dm, am, cm)
-    mappings (L (UnhelpfulSpan _) _, _) = pure ([], [], [])
+    mappings (L (SrcSpanAnn _ (UnhelpfulSpan _)) _, _) = pure ([], [], [])
 
     instanceMap :: Map RealSrcSpan Name
     instanceMap = M.fromList [(l, n) | n <- instances, RealSrcSpan l _ <- [getSrcSpan n] ]
@@ -522,20 +522,20 @@ typeDocs = go 0
 -- | All the sub declarations of a class (that we handle), ordered by
 -- source location, with documentation attached if it exists.
 classDecls :: TyClDecl GhcRn -> [(LHsDecl GhcRn, [HsDocString])]
-classDecls class_ = filterDecls . collectDocs . SrcLoc.sortLocated $ decls
+classDecls class_ = filterDecls . collectDocs . sortLocatedA $ decls
   where
     decls = docs ++ defs ++ sigs ++ ats
-    docs  = mkDecls tcdDocs (DocD noExtField) class_
+    docs  = mkDeclsA tcdDocs (DocD noExtField) class_
     defs  = mkDecls (bagToList . tcdMeths) (ValD noExtField) class_
-    sigs  = mkDecls tcdSigs (SigD noExtField) class_
-    ats   = mkDecls tcdATs (TyClD noExtField . FamDecl noExtField) class_
+    sigs  = mkDeclsA tcdSigs (SigD noExtField) class_
+    ats   = mkDeclsA tcdATs (TyClD noExtField . FamDecl noExtField) class_
 
 
 -- | The top-level declarations of a module that we care about,
 -- ordered by source location, with documentation attached if it exists.
 topDecls :: HsGroup GhcRn -> [(LHsDecl GhcRn, [HsDocString])]
 topDecls =
-  filterClasses . filterDecls . collectDocs . SrcLoc.sortLocated . ungroup
+  filterClasses . filterDecls . collectDocs . sortLocatedA . ungroup
 
 -- | Extract a map of fixity declarations only
 mkFixMap :: HsGroup GhcRn -> FixMap
@@ -548,14 +548,14 @@ mkFixMap group_ =
 -- | Take all declarations except pragmas, infix decls, rules from an 'HsGroup'.
 ungroup :: HsGroup GhcRn -> [LHsDecl GhcRn]
 ungroup group_ =
-  mkDecls (tyClGroupTyClDecls . hs_tyclds) (TyClD noExtField)  group_ ++
-  mkDecls hs_derivds             (DerivD noExtField) group_ ++
-  mkDecls hs_defds               (DefD noExtField)   group_ ++
-  mkDecls hs_fords               (ForD noExtField)   group_ ++
-  mkDecls hs_docs                (DocD noExtField)   group_ ++
-  mkDecls (tyClGroupInstDecls . hs_tyclds) (InstD noExtField)  group_ ++
-  mkDecls (typesigs . hs_valds)  (SigD noExtField)   group_ ++
-  mkDecls (valbinds . hs_valds)  (ValD noExtField)   group_
+  mkDeclsA (tyClGroupTyClDecls . hs_tyclds) (TyClD noExtField)  group_ ++
+  mkDeclsA hs_derivds             (DerivD noExtField) group_ ++
+  mkDeclsA hs_defds               (DefD noExtField)   group_ ++
+  mkDeclsA hs_fords               (ForD noExtField)   group_ ++
+  mkDeclsA hs_docs                (DocD noExtField)   group_ ++
+  mkDeclsA (tyClGroupInstDecls . hs_tyclds) (InstD noExtField)  group_ ++
+  mkDeclsA (typesigs . hs_valds)  (SigD noExtField)   group_ ++
+  mkDecls  (valbinds . hs_valds)  (ValD noExtField)   group_
   where
     typesigs (XValBindsLR (NValBinds _ sigs)) = filter isUserLSig sigs
     typesigs _ = error "expected ValBindsOut"
@@ -566,8 +566,13 @@ ungroup group_ =
 
 -- | Take a field of declarations from a data structure and create HsDecls
 -- using the given constructor
-mkDecls :: (a -> [Located b]) -> (b -> c) -> a -> [Located c]
+mkDecls :: (a -> [GenLocated l b]) -> (b -> c) -> a -> [GenLocated l c]
 mkDecls field con struct = [ L loc (con decl) | L loc decl <- field struct ]
+
+-- | Take a field of declarations from a data structure and create HsDecls
+-- using the given constructor
+mkDeclsA :: (a -> [Located b]) -> (b -> c) -> a -> [LocatedA c]
+mkDeclsA field con struct = [ L (noAnnSrcSpan loc) (con decl) | L loc decl <- field struct ]
 
 --------------------------------------------------------------------------------
 -- Filtering of declarations
@@ -713,7 +718,8 @@ availExportItem is_sig modMap thisMod semMod warnings exportedNames
       let t = availName avail
       r    <- findDecl avail
       case r of
-        ([L l (ValD _ _)], (doc, _)) -> do
+        ([L l' (ValD _ _)], (doc, _)) -> do
+          let l = locA l'
           -- Top-level binding without type signature
           export <- hiValExportItem dflags t l doc (l `elem` splices) $ M.lookup t fixMap
           return [export]
@@ -900,7 +906,7 @@ hiDecl dflags t = do
     Just x -> case tyThingToLHsDecl ShowRuntimeRep x of
       Left m -> liftErrMsg (tell [bugWarn m]) >> return Nothing
       Right (m, t') -> liftErrMsg (tell $ map bugWarn m)
-                      >> return (Just $ noLoc t')
+                      >> return (Just $ noLocA t')
     where
       warnLine x = O.text "haddock-bug:" O.<+> O.text x O.<>
                    O.comma O.<+> O.quotes (O.ppr t) O.<+>
@@ -919,7 +925,7 @@ hiValExportItem dflags name nLoc doc splice fixity = do
     Nothing -> return (ExportNoDecl name [])
     Just decl -> return (ExportDecl (fixSpan decl) [] doc [] [] fixities splice)
   where
-    fixSpan (L l t) = L (SrcLoc.combineSrcSpans l nLoc) t
+    fixSpan (L (SrcSpanAnn a l) t) = L (SrcSpanAnn a (SrcLoc.combineSrcSpans l nLoc)) t
     fixities = case fixity of
       Just f  -> [(name, f)]
       Nothing -> []
@@ -1062,8 +1068,8 @@ extractDecl declMap name decl
         in case (matchesMethod, matchesAssociatedType)  of
           ([s0], _) -> let (n, tyvar_names) = (tcdName d, tyClDeclTyVars d)
                            L pos sig = addClassContext n tyvar_names s0
-                       in L pos (SigD noExtField sig)
-          (_, [L pos fam_decl]) -> L pos (TyClD noExtField (FamDecl noExtField fam_decl))
+                       in L (noAnnSrcSpan pos) (SigD noExtField sig)
+          (_, [L pos fam_decl]) -> L (noAnnSrcSpan pos) (TyClD noExtField (FamDecl noExtField fam_decl))
 
           ([], [])
             | Just (famInstDecl:_) <- M.lookup name declMap
@@ -1075,8 +1081,8 @@ extractDecl declMap name decl
       TyClD _ d@DataDecl {} ->
         let (n, tyvar_tys) = (tcdName d, lHsQTyVarsToTypes (tyClDeclTyVars d))
         in if isDataConName name
-           then SigD noExtField <$> extractPatternSyn name n tyvar_tys (dd_cons (tcdDataDefn d))
-           else SigD noExtField <$> extractRecSel name n tyvar_tys (dd_cons (tcdDataDefn d))
+           then reLocA $ SigD noExtField <$> extractPatternSyn name n tyvar_tys (dd_cons (tcdDataDefn d))
+           else reLocA $ SigD noExtField <$> extractRecSel name n tyvar_tys (dd_cons (tcdDataDefn d))
       TyClD _ FamDecl {}
         | isValName name
         , Just (famInst:_) <- M.lookup name declMap
@@ -1086,8 +1092,8 @@ extractDecl declMap name decl
                                     , feqn_pats  = tys
                                     , feqn_rhs   = defn }}))) ->
         if isDataConName name
-        then SigD noExtField <$> extractPatternSyn name n tys (dd_cons defn)
-        else SigD noExtField <$> extractRecSel name n tys (dd_cons defn)
+        then reLocA $ SigD noExtField <$> extractPatternSyn name n tys (dd_cons defn)
+        else reLocA $ SigD noExtField <$> extractRecSel name n tys (dd_cons defn)
       InstD _ (ClsInstD _ ClsInstDecl { cid_datafam_insts = insts })
         | isDataConName name ->
             let matches = [ d' | L _ d'@(DataFamInstDecl (HsIB { hsib_body =
@@ -1097,7 +1103,7 @@ extractDecl declMap name decl
                                , name `elem` map unLoc (concatMap (getConNames . unLoc) (dd_cons dd))
                                ]
             in case matches of
-                [d0] -> extractDecl declMap name (noLoc (InstD noExtField (DataFamInstD noExtField d0)))
+                [d0] -> extractDecl declMap name (noLocA (InstD noExtField (DataFamInstD noExtField d0)))
                 _    -> error "internal: extractDecl (ClsInstD)"
         | otherwise ->
             let matches = [ d' | L _ d'@(DataFamInstDecl (HsIB { hsib_body = d }))
@@ -1109,7 +1115,7 @@ extractDecl declMap name decl
                                , extFieldOcc n == name
                           ]
             in case matches of
-              [d0] -> extractDecl declMap name (noLoc . InstD noExtField $ DataFamInstD noExtField d0)
+              [d0] -> extractDecl declMap name (noLocA . InstD noExtField $ DataFamInstD noExtField d0)
               _ -> error "internal: extractDecl (ClsInstD)"
       _ -> O.pprPanic "extractDecl" $
         O.text "Unhandled decl for" O.<+> O.ppr name O.<> O.text ":"
@@ -1135,7 +1141,7 @@ extractPatternSyn nm t tvs cons =
           case con of
             ConDeclH98 { con_mb_cxt = Just cxt } -> noLoc (HsQualTy noAnn cxt typ)
             _ -> typ
-        typ'' = noLoc (HsQualTy noAnn (noLoc []) typ')
+        typ'' = noLoc (HsQualTy noAnn (noLocA []) typ')
     in PatSynSig noAnn [noLocA nm] (mkEmptyImplicitBndrs typ'')
 
   longArrow :: [LHsType GhcRn] -> LHsType GhcRn -> LHsType GhcRn
