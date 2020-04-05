@@ -212,10 +212,10 @@ renameFamilyResultSig (L loc (TyVarSig _ bndr))
          ; return (L loc (TyVarSig noExtField bndr')) }
 
 renameInjectivityAnn :: LInjectivityAnn GhcRn -> RnM (LInjectivityAnn DocNameI)
-renameInjectivityAnn (L loc (InjectivityAnn lhs rhs))
+renameInjectivityAnn (L loc (InjectivityAnn _ lhs rhs))
     = do { lhs' <- renameL lhs
          ; rhs' <- mapM renameL rhs
-         ; return (L loc (InjectivityAnn lhs' rhs')) }
+         ; return (L loc (InjectivityAnn noExtField lhs' rhs')) }
 
 renameMaybeInjectivityAnn :: Maybe (LInjectivityAnn GhcRn)
                           -> RnM (Maybe (LInjectivityAnn DocNameI))
@@ -313,7 +313,7 @@ renameLTyVarBndr (L loc (KindedTyVar x (L lv n) kind))
        ; kind' <- renameLKind kind
        ; return (L loc (KindedTyVar x (L lv n') kind')) }
 
-renameLContext :: Located [LHsType GhcRn] -> RnM (Located [LHsType DocNameI])
+renameLContext :: LocatedA [LHsType GhcRn] -> RnM (LocatedA [LHsType DocNameI])
 renameLContext (L loc context) = do
   context' <- mapM renameLType context
   return (L loc context')

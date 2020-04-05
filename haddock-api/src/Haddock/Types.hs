@@ -757,3 +757,5 @@ type instance XConDeclField  DocNameI = NoExtField
 type instance XXConDeclField DocNameI = NoExtCon
 
 type instance XXPat DocNameI = NoExtCon
+
+type instance XCInjectivityAnn DocNameI = NoExtField
