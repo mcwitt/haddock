@@ -71,14 +71,14 @@ getMainDeclBinder _ = []
 -- to correlate InstDecls with their Instance/CoAxiom Names, via the
 -- instanceMap.
 getInstLoc :: InstDecl (GhcPass p) -> SrcSpan
-getInstLoc (ClsInstD _ (ClsInstDecl { cid_poly_ty = ty })) = getLoc (hsSigType ty)
+getInstLoc (ClsInstD _ (ClsInstDecl { cid_poly_ty = ty })) = getLocA (hsSigType ty)
 getInstLoc (DataFamInstD _ (DataFamInstDecl
   { dfid_eqn = HsIB { hsib_body = FamEqn { feqn_tycon = L l _ }}})) = locA l
 getInstLoc (TyFamInstD _ (TyFamInstDecl
   -- Since CoAxioms' Names refer to the whole line for type family instances
   -- in particular, we need to dig a bit deeper to pull out the entire
   -- equation. This does not happen for data family instances, for some reason.
-  { tfid_eqn = HsIB { hsib_body = FamEqn { feqn_rhs = L l _ }}})) = l
+  { tfid_eqn = HsIB { hsib_body = FamEqn { feqn_rhs = L l _ }}})) = locA l
 
 
 
@@ -188,23 +188,23 @@ getGADTConType (ConDeclGADT { con_forall = L _ has_forall
                             , con_qvars = qtvs
                             , con_mb_cxt = mcxt, con_args = args
                             , con_res_ty = res_ty })
- | has_forall = noLoc (HsForAllTy { hst_fvf = ForallInvis
-                                  , hst_xforall = noAnn
-                                  , hst_bndrs = hsQTvExplicit qtvs
-                                  , hst_body  = theta_ty })
+ | has_forall = noLocA (HsForAllTy { hst_fvf = ForallInvis
+                                   , hst_xforall = noAnn
+                                   , hst_bndrs = hsQTvExplicit qtvs
+                                   , hst_body  = theta_ty })
  | otherwise  = theta_ty
  where
    theta_ty | Just theta <- mcxt
-            = noLoc (HsQualTy { hst_xqual = noAnn, hst_ctxt = theta, hst_body = tau_ty })
+            = noLocA (HsQualTy { hst_xqual = noAnn, hst_ctxt = theta, hst_body = tau_ty })
             | otherwise
             = tau_ty
 
    tau_ty = case args of
-              RecCon flds -> noLoc (HsFunTy noAnn (noLoc (HsRecTy noAnn (unLoc flds))) res_ty)
+              RecCon flds -> noLocA (HsFunTy noAnn (noLocA (HsRecTy noAnn (unLoc flds))) res_ty)
               PrefixCon pos_args -> foldr mkFunTy res_ty pos_args
               InfixCon arg1 arg2 -> arg1 `mkFunTy` (arg2 `mkFunTy` res_ty)
 
-   mkFunTy a b = noLoc (HsFunTy noAnn a b)
+   mkFunTy a b = noLocA (HsFunTy noAnn a b)
 
 getGADTConType (ConDeclH98 {}) = panic "getGADTConType"
   -- Should only be called on ConDeclGADT
@@ -243,23 +243,23 @@ getGADTConTypeG (ConDeclGADT { con_forall = L _ has_forall
                             , con_qvars = qtvs
                             , con_mb_cxt = mcxt, con_args = args
                             , con_res_ty = res_ty })
- | has_forall = noLoc (HsForAllTy { hst_fvf = ForallInvis
+ | has_forall = noLocA (HsForAllTy { hst_fvf = ForallInvis
                                   , hst_xforall = noAnn
                                   , hst_bndrs = hsQTvExplicit qtvs
                                   , hst_body  = theta_ty })
  | otherwise  = theta_ty
  where
    theta_ty | Just theta <- mcxt
-            = noLoc (HsQualTy { hst_xqual = noAnn, hst_ctxt = theta, hst_body = tau_ty })
+            = noLocA (HsQualTy { hst_xqual = noAnn, hst_ctxt = theta, hst_body = tau_ty })
             | otherwise
             = tau_ty
 
    tau_ty = case args of
-              RecCon flds -> noLoc (HsFunTy noAnn (noLoc (HsRecTy noExtField (unLoc flds))) res_ty)
+              RecCon flds -> noLocA (HsFunTy noAnn (noLocA (HsRecTy noExtField (unLoc flds))) res_ty)
               PrefixCon pos_args -> foldr mkFunTy res_ty pos_args
               InfixCon arg1 arg2 -> arg1 `mkFunTy` (arg2 `mkFunTy` res_ty)
 
-   mkFunTy a b = noLoc (HsFunTy noAnn a b)
+   mkFunTy a b = noLocA (HsFunTy noAnn a b)
 
 getGADTConTypeG (ConDeclH98 {}) = panic "getGADTConTypeG"
   -- Should only be called on ConDeclGADT
@@ -336,7 +336,7 @@ reparenTypePrec = go
         => Precedence            -- Precedence of context
         -> Precedence            -- Precedence of top-level operator
         -> HsType a -> HsType a  -- Wrap in parens if (ctxt >= op)
-  paren ctxt_prec op_prec | ctxt_prec >= op_prec = HsParTy noAnn . noLoc
+  paren ctxt_prec op_prec | ctxt_prec >= op_prec = HsParTy noAnn . noLocA
                           | otherwise            = id
 
 
