@@ -376,7 +376,7 @@ mkPseudoFamilyDecl :: FamilyDecl GhcRn -> PseudoFamilyDecl GhcRn
 mkPseudoFamilyDecl (FamilyDecl { .. }) = PseudoFamilyDecl
     { pfdInfo = fdInfo
     , pfdLName = fdLName
-    , pfdTyVars = [ L loc (mkType bndr) | L loc bndr <- hsq_explicit fdTyVars ]
+    , pfdTyVars = [ L (noAnnSrcSpan loc) (mkType bndr) | L loc bndr <- hsq_explicit fdTyVars ]
     , pfdKindSig = fdResultSig
     }
   where
@@ -384,7 +384,7 @@ mkPseudoFamilyDecl (FamilyDecl { .. }) = PseudoFamilyDecl
     mkType (KindedTyVar _ (L loc name) lkind) =
         HsKindSig noAnn tvar lkind
       where
-        tvar = L (locA loc) (HsTyVar noAnn NotPromoted (L loc name))
+        tvar = L loc (HsTyVar noAnn NotPromoted (L loc name))
     mkType (UserTyVar _ name) = HsTyVar noAnn NotPromoted name
     mkType (XTyVarBndr nec) = noExtCon nec
 
@@ -759,3 +759,5 @@ type instance XXConDeclField DocNameI = NoExtCon
 type instance XXPat DocNameI = NoExtCon
 
 type instance XCInjectivityAnn DocNameI = NoExtField
+
+type instance XCFunDep DocNameI = NoExtField

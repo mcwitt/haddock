@@ -76,7 +76,7 @@ specializeSig :: LHsQTyVars GhcRn -> [HsType GhcRn]
               -> Sig GhcRn
               -> Sig GhcRn
 specializeSig bndrs typs (TypeSig _ lnames typ) =
-  TypeSig noAnn lnames (typ {hswc_body = (hswc_body typ) {hsib_body = noLoc typ'}})
+  TypeSig noAnn lnames (typ {hswc_body = (hswc_body typ) {hsib_body = noLocA typ'}})
   where
     true_type :: HsType GhcRn
     true_type = unLoc (hsSigWcType typ)

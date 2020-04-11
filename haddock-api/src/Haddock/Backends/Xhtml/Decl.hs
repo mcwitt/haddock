@@ -480,7 +480,7 @@ ppHsContext cxt unicode qual = parenList (map (ppType unicode qual HideEmptyCont
 
 
 ppClassHdr :: Bool -> LocatedA [LHsType DocNameI] -> DocName
-           -> LHsQTyVars DocNameI -> [Located ([LocatedA DocName], [LocatedA DocName])]
+           -> LHsQTyVars DocNameI -> [LHsFunDep DocNameI]
            -> Unicode -> Qualification -> Html
 ppClassHdr summ lctxt n tvs fds unicode qual =
   keyword "class"
@@ -489,12 +489,12 @@ ppClassHdr summ lctxt n tvs fds unicode qual =
   <+> ppFds fds unicode qual
 
 
-ppFds :: [Located ([LocatedA DocName], [LocatedA DocName])] -> Unicode -> Qualification -> Html
+ppFds :: [LHsFunDep DocNameI] -> Unicode -> Qualification -> Html
 ppFds fds unicode qual =
   if null fds then noHtml else
         char '|' <+> hsep (punctuate comma (map (fundep . unLoc) fds))
   where
-        fundep (vars1,vars2) = ppVars vars1 <+> arrow unicode <+> ppVars vars2
+        fundep (FunDep _ vars1 vars2) = ppVars vars1 <+> arrow unicode <+> ppVars vars2
         ppVars = hsep . map ((ppDocName qual Prefix True) . unLoc)
 
 ppShortClassDecl :: Bool -> LinksInfo -> TyClDecl DocNameI -> SrcSpan
@@ -1089,7 +1089,7 @@ sumParens = ubxSumList
 -- * Rendering of HsType
 --------------------------------------------------------------------------------
 
-ppLType, ppLParendType, ppLFunLhType :: Unicode -> Qualification -> HideEmptyContexts -> Located (HsType DocNameI) -> Html
+ppLType, ppLParendType, ppLFunLhType :: Unicode -> Qualification -> HideEmptyContexts -> LHsType DocNameI -> Html
 ppLType       unicode qual emptyCtxts y = ppType unicode qual emptyCtxts (unLoc y)
 ppLParendType unicode qual emptyCtxts y = ppParendType unicode qual emptyCtxts (unLoc y)
 ppLFunLhType  unicode qual emptyCtxts y = ppFunLhType unicode qual emptyCtxts (unLoc y)

@@ -305,13 +305,13 @@ renameLHsQTyVars (HsQTvs { hsq_explicit = tvs })
                         , hsq_explicit = tvs' }) }
 
 renameLTyVarBndr :: LHsTyVarBndr GhcRn -> RnM (LHsTyVarBndr DocNameI)
-renameLTyVarBndr (L loc (UserTyVar x (L l n)))
+renameLTyVarBndr (L loc (UserTyVar _ (L l n)))
   = do { n' <- rename n
-       ; return (L loc (UserTyVar x (L l n'))) }
-renameLTyVarBndr (L loc (KindedTyVar x (L lv n) kind))
+       ; return (L loc (UserTyVar noExtField (L l n'))) }
+renameLTyVarBndr (L loc (KindedTyVar _ (L lv n) kind))
   = do { n' <- rename n
        ; kind' <- renameLKind kind
-       ; return (L loc (KindedTyVar x (L lv n') kind')) }
+       ; return (L loc (KindedTyVar noExtField (L lv n') kind')) }
 
 renameLContext :: LocatedA [LHsType GhcRn] -> RnM (LocatedA [LHsType DocNameI])
 renameLContext (L loc context) = do
@@ -404,10 +404,10 @@ renameTyClD d = case d of
                       , tcdATs = ats', tcdATDefs = at_defs', tcdDocs = [], tcdCExt = noExtField })
 
   where
-    renameLFunDep (L loc (xs, ys)) = do
+    renameLFunDep (L loc (FunDep _ xs ys)) = do
       xs' <- mapM rename (map unLoc xs)
       ys' <- mapM rename (map unLoc ys)
-      return (L loc (map noLocA xs', map noLocA ys'))
+      return (L loc (FunDep noExtField (map noLocA xs') (map noLocA ys')))
 
     renameLSig (L loc sig) = return . L loc =<< renameSig sig
 

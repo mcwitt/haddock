@@ -478,9 +478,9 @@ subordinates instMap decl = case decl of
             -- deriving (forall a. C a {- ^ Doc comment -})
             HsForAllTy{ hst_fvf = ForallInvis
                       , hst_body = L _ (HsDocTy _ _ doc) }
-                            -> Just (l, doc)
+                            -> Just (locA l, doc)
             -- deriving (C a {- ^ Doc comment -})
-            HsDocTy _ _ doc -> Just (l, doc)
+            HsDocTy _ _ doc -> Just (locA l, doc)
             _               -> Nothing
 
 -- | Extract constructor argument docs from inside constructor decls.
@@ -1139,17 +1139,17 @@ extractPatternSyn nm t tvs cons =
         typ = longArrow args (data_ty con)
         typ' =
           case con of
-            ConDeclH98 { con_mb_cxt = Just cxt } -> noLoc (HsQualTy noAnn cxt typ)
+            ConDeclH98 { con_mb_cxt = Just cxt } -> noLocA (HsQualTy noAnn cxt typ)
             _ -> typ
-        typ'' = noLoc (HsQualTy noAnn (noLocA []) typ')
+        typ'' = noLocA (HsQualTy noAnn (noLocA []) typ')
     in PatSynSig noAnn [noLocA nm] (mkEmptyImplicitBndrs typ'')
 
   longArrow :: [LHsType GhcRn] -> LHsType GhcRn -> LHsType GhcRn
-  longArrow inputs output = foldr (\x y -> noLoc (HsFunTy noAnn x y)) output inputs
+  longArrow inputs output = foldr (\x y -> noLocA (HsFunTy noAnn x y)) output inputs
 
   data_ty con
     | ConDeclGADT{} <- con = con_res_ty con
-    | otherwise = foldl' (\x y -> noLoc (mkAppTyArg x y)) (noLoc (HsTyVar noAnn NotPromoted (noLocA t))) tvs
+    | otherwise = foldl' (\x y -> noLocA (mkAppTyArg x y)) (noLocA (HsTyVar noAnn NotPromoted (noLocA t))) tvs
                     where mkAppTyArg :: LHsType GhcRn -> LHsTypeArg GhcRn -> HsType GhcRn
                           mkAppTyArg f (HsValArg ty) = HsAppTy noExtField f ty
                           mkAppTyArg f (HsTypeArg l ki) = HsAppKindTy l f ki
@@ -1162,7 +1162,7 @@ extractRecSel _ _ _ [] = error "extractRecSel: selector not found"
 extractRecSel nm t tvs (L _ con : rest) =
   case getConArgs con of
     RecCon (L _ fields) | ((l,L _ (ConDeclField _ _nn ty _)) : _) <- matching_fields fields ->
-      L l (TypeSig noAnn [noLocA nm] (mkEmptySigWcType (noLoc (HsFunTy noAnn data_ty (getBangType ty)))))
+      L l (TypeSig noAnn [noLocA nm] (mkEmptySigWcType (noLocA (HsFunTy noAnn data_ty (getBangType ty)))))
     _ -> extractRecSel nm t tvs rest
  where
   matching_fields :: [LConDeclField GhcRn] -> [(SrcSpan, LConDeclField GhcRn)]
@@ -1171,7 +1171,7 @@ extractRecSel nm t tvs (L _ con : rest) =
   data_ty
     -- ResTyGADT _ ty <- con_res con = ty
     | ConDeclGADT{} <- con = con_res_ty con
-    | otherwise = foldl' (\x y -> noLoc (mkAppTyArg x y)) (noLoc (HsTyVar noAnn NotPromoted (noLocA t))) tvs
+    | otherwise = foldl' (\x y -> noLocA (mkAppTyArg x y)) (noLocA (HsTyVar noAnn NotPromoted (noLocA t))) tvs
                    where mkAppTyArg :: LHsType GhcRn -> LHsTypeArg GhcRn -> HsType GhcRn
                          mkAppTyArg f (HsValArg ty) = HsAppTy noExtField f ty
                          mkAppTyArg f (HsTypeArg l ki) = HsAppKindTy l f ki
