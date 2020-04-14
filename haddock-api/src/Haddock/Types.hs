@@ -670,7 +670,8 @@ instance MonadIO ErrMsgGhc where
 -- * Pass sensitive types
 -----------------------------------------------------------------------------
 
-type instance XRec DocNameI f = Located (f DocNameI)
+-- For LPat
+type instance XRec DocNameI f = LocatedA (f DocNameI)
 
 type instance XForAllTy        DocNameI = ApiAnn
 type instance XQualTy          DocNameI = ApiAnn

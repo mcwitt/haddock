@@ -41,7 +41,6 @@ import GHC.Types.Var.Env ( TyVarEnv, extendVarEnv, elemVarEnv, emptyVarEnv )
 import GHC.Core.TyCo.Rep ( Type(..) )
 import GHC.Core.Type     ( isRuntimeRepVar )
 import GHC.Builtin.Types( liftedRepDataConTyCon )
-import GHC.Hs.Utils (CollectPass(..))
 
 import           GHC.Data.StringBuffer ( StringBuffer )
 import qualified GHC.Data.StringBuffer             as S

@@ -82,11 +82,7 @@ binaryInterfaceMagic = 0xD0Cface
 -- (2) set `binaryInterfaceVersionCompatibility` to [binaryInterfaceVersion]
 --
 binaryInterfaceVersion :: Word16
-<<<<<<< HEAD
 #if MIN_VERSION_ghc(8,11,0) && !MIN_VERSION_ghc(8,13,0)
-=======
-#if (__GLASGOW_HASKELL__ >= 809) && (__GLASGOW_HASKELL__ < 811)
->>>>>>> 97b3d3df... Bump ghc version to 8.9
 binaryInterfaceVersion = 34
 
 binaryInterfaceVersionCompatibility :: [Word16]
