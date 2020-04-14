@@ -752,7 +752,7 @@ availExportItem is_sig modMap thisMod semMod warnings exportedNames
 
                   L loc (TyClD _ cl@ClassDecl{}) -> do
                     mdef <- liftGhcToErrMsgGhc $ minimalDef t
-                    let sig = maybeToList $ fmap (noLoc . MinimalSig noAnn NoSourceText . noLoc . fmap noLocA) mdef
+                    let sig = maybeToList $ fmap (noLoc . MinimalSig noAnn NoSourceText . noLocA . fmap noLocA) mdef
                     availExportDecl avail
                       (L loc $ TyClD noExtField cl { tcdSigs = sig ++ tcdSigs cl }) docs_
 
@@ -1125,7 +1125,7 @@ extractPatternSyn :: Name -> Name -> [LHsTypeArg GhcRn] -> [LConDecl GhcRn] -> L
 extractPatternSyn nm t tvs cons =
   case filter matches cons of
     [] -> error "extractPatternSyn: constructor pattern not found"
-    con:_ -> extract <$> con
+    con:_ -> reLoc $ extract <$> con
  where
   matches :: LConDecl GhcRn -> Bool
   matches (L _ con) = nm `elem` (unLoc <$> getConNames con)

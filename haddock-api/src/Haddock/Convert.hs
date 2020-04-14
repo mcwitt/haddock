@@ -118,7 +118,7 @@ tyThingToLHsDecl prr t = case t of
          , tcdFDs = map (\ (l,r) -> noLocA
                         (FunDep noAnn (map (noLocA . getName) l) (map (noLocA . getName) r)) ) $
                          snd $ classTvsFds cl
-         , tcdSigs = noLoc (MinimalSig noAnn NoSourceText . noLoc . fmap noLocA $ classMinimalDef cl) :
+         , tcdSigs = noLoc (MinimalSig noAnn NoSourceText . noLocA . fmap noLocA $ classMinimalDef cl) :
                       [ noLoc tcdSig
                       | clsOp <- classOpItems cl
                       , tcdSig <- synifyTcIdSig vs clsOp ]
@@ -367,9 +367,10 @@ synifyDataCon use_gadt_syntax dc =
             arg_tys (dataConSrcBangs dc)
 
   field_tys = zipWith con_decl_field (dataConFieldLabels dc) linear_tys
-  con_decl_field fl synTy = noLoc $
-    ConDeclField noExtField [noLoc $ FieldOcc (flSelector fl) (noLocA $ mkVarUnqual $ flLabel fl)] synTy
+  con_decl_field fl synTy = noLocA $
+    ConDeclField noAnn [noLoc $ FieldOcc (flSelector fl) (noLocA $ mkVarUnqual $ flLabel fl)] synTy
                  Nothing
+  hs_arg_tys :: Either String (HsConDeclDetails GhcRn) -- AZ
   hs_arg_tys = case (use_named_field_syntax, use_infix_syntax) of
           (True,True) -> Left "synifyDataCon: contradiction!"
           (True,False) -> return $ RecCon (noLoc field_tys)
@@ -381,8 +382,8 @@ synifyDataCon use_gadt_syntax dc =
  in hs_arg_tys >>=
       \hat ->
         if use_gadt_syntax
-           then return $ noLoc $
-              ConDeclGADT { con_g_ext  = noExtField
+           then return $ noLocA $
+              ConDeclGADT { con_g_ext  = noAnn
                           , con_names  = [name]
                           , con_forall = noLoc $ not $ null user_tvs
                           , con_qvars  = synifyTyVars user_tvs
@@ -390,8 +391,8 @@ synifyDataCon use_gadt_syntax dc =
                           , con_args   = hat
                           , con_res_ty = synifyType WithinType [] res_ty
                           , con_doc    = Nothing }
-           else return $ noLoc $
-              ConDeclH98 { con_ext    = noExtField
+           else return $ noLocA $
+              ConDeclH98 { con_ext    = noAnn
                          , con_name   = name
                          , con_forall = noLoc False
                          , con_ex_tvs = map synifyTyVar ex_tvs
