@@ -57,22 +57,22 @@ ppDecl :: Bool                                     -- ^ print summary info only
        -> Qualification
        -> Html
 ppDecl summ links (L loc decl) pats (mbDoc, fnArgsDoc) instances fixities subdocs splice unicode pkg qual = case decl of
-  TyClD _ (FamDecl _ d)          -> ppFamDecl summ False links instances fixities loc mbDoc d splice unicode pkg qual
-  TyClD _ d@(DataDecl {})        -> ppDataDecl summ links instances fixities subdocs loc mbDoc d pats splice unicode pkg qual
-  TyClD _ d@(SynDecl {})         -> ppTySyn summ links fixities loc (mbDoc, fnArgsDoc) d splice unicode pkg qual
-  TyClD _ d@(ClassDecl {})       -> ppClassDecl summ links instances fixities loc mbDoc subdocs d splice unicode pkg qual
-  SigD _ (TypeSig _ lnames lty)  -> ppLFunSig summ links loc (mbDoc, fnArgsDoc) lnames
+  TyClD _ (FamDecl _ d)          -> ppFamDecl summ False links instances fixities (locA loc) mbDoc d splice unicode pkg qual
+  TyClD _ d@(DataDecl {})        -> ppDataDecl summ links instances fixities subdocs (locA loc) mbDoc d pats splice unicode pkg qual
+  TyClD _ d@(SynDecl {})         -> ppTySyn summ links fixities (locA loc) (mbDoc, fnArgsDoc) d splice unicode pkg qual
+  TyClD _ d@(ClassDecl {})       -> ppClassDecl summ links instances fixities (locA loc) mbDoc subdocs d splice unicode pkg qual
+  SigD _ (TypeSig _ lnames lty)  -> ppLFunSig summ links (locA loc) (mbDoc, fnArgsDoc) lnames
                                          (hsSigWcType lty) fixities splice unicode pkg qual
-  SigD _ (PatSynSig _ lnames lty) -> ppLPatSig summ links loc (mbDoc, fnArgsDoc) lnames
+  SigD _ (PatSynSig _ lnames lty) -> ppLPatSig summ links (locA loc) (mbDoc, fnArgsDoc) lnames
                                          (hsSigTypeI lty) fixities splice unicode pkg qual
-  ForD _ d                       -> ppFor summ links loc (mbDoc, fnArgsDoc) d fixities splice unicode pkg qual
+  ForD _ d                       -> ppFor summ links (locA loc) (mbDoc, fnArgsDoc) d fixities splice unicode pkg qual
   InstD _ _                      -> noHtml
   DerivD _ _                     -> noHtml
   _                              -> error "declaration not supported by ppDecl"
 
 
 ppLFunSig :: Bool -> LinksInfo -> SrcSpan -> DocForDecl DocName ->
-             [Located DocName] -> LHsType DocNameI -> [(DocName, Fixity)] ->
+             [LocatedA DocName] -> LHsType DocNameI -> [(DocName, Fixity)] ->
              Splice -> Unicode -> Maybe Package -> Qualification -> Html
 ppLFunSig summary links loc doc lnames lty fixities splice unicode pkg qual =
   ppFunSig summary links loc doc (map unLoc lnames) lty fixities
@@ -89,7 +89,7 @@ ppFunSig summary links loc doc docnames typ fixities splice unicode pkg qual =
 
 -- | Pretty print a pattern synonym
 ppLPatSig :: Bool -> LinksInfo -> SrcSpan -> DocForDecl DocName
-          -> [Located DocName]     -- ^ names of patterns in declaration
+          -> [LocatedA DocName]    -- ^ names of patterns in declaration
           -> LHsType DocNameI      -- ^ type of patterns in declaration
           -> [(DocName, Fixity)]
           -> Splice -> Unicode -> Maybe Package -> Qualification -> Html
@@ -340,7 +340,7 @@ ppPseudoFamDecl links splice
                                   , pfdTyVars = tvs
                                   , pfdLName = L loc name })
                 unicode qual =
-    topDeclElem links loc splice [name] leader
+    topDeclElem links (locA loc) splice [name] leader
   where
     leader = hsep [ ppFamilyLeader True info
                   , ppAppNameTypes name (map unLoc tvs) unicode qual
@@ -371,10 +371,10 @@ ppFamHeader summary associated (FamilyDecl { fdInfo = info
 
     injAnn = case injectivity of
       Nothing -> noHtml
-      Just (L _ (InjectivityAnn lhs rhs)) -> hsep ( keyword "|"
-                                                  : ppLDocName qual Raw lhs
-                                                  : arrow unicode
-                                                  : map (ppLDocName qual Raw) rhs)
+      Just (L _ (InjectivityAnn _ lhs rhs)) -> hsep ( keyword "|"
+                                                    : ppLDocName qual Raw lhs
+                                                    : arrow unicode
+                                                    : map (ppLDocName qual Raw) rhs)
 
 -- | Print the keywords that begin the family declaration
 ppFamilyLeader :: Bool -> FamilyInfo DocNameI -> Html
@@ -445,7 +445,7 @@ ppTypeApp n ts ppDN ppT = ppDN Prefix n <+> hsep (map ppT ts)
 -------------------------------------------------------------------------------
 
 
-ppLContext, ppLContextNoArrow :: Located (HsContext DocNameI) -> Unicode
+ppLContext, ppLContextNoArrow :: LHsContext DocNameI -> Unicode
                               -> Qualification -> HideEmptyContexts -> Html
 ppLContext        = ppContext        . unLoc
 ppLContextNoArrow = ppContextNoArrow . unLoc
@@ -482,8 +482,8 @@ ppHsContext cxt unicode qual = parenList (map (ppType unicode qual HideEmptyCont
 -------------------------------------------------------------------------------
 
 
-ppClassHdr :: Bool -> Located [LHsType DocNameI] -> DocName
-           -> LHsQTyVars DocNameI -> [Located ([Located DocName], [Located DocName])]
+ppClassHdr :: Bool -> LocatedA [LHsType DocNameI] -> DocName
+           -> LHsQTyVars DocNameI -> [LHsFunDep DocNameI]
            -> Unicode -> Qualification -> Html
 ppClassHdr summ lctxt n tvs fds unicode qual =
   keyword "class"
@@ -492,12 +492,12 @@ ppClassHdr summ lctxt n tvs fds unicode qual =
   <+> ppFds fds unicode qual
 
 
-ppFds :: [Located ([Located DocName], [Located DocName])] -> Unicode -> Qualification -> Html
+ppFds :: [LHsFunDep DocNameI] -> Unicode -> Qualification -> Html
 ppFds fds unicode qual =
   if null fds then noHtml else
         char '|' <+> hsep (punctuate comma (map (fundep . unLoc) fds))
   where
-        fundep (vars1,vars2) = ppVars vars1 <+> arrow unicode <+> ppVars vars2
+        fundep (FunDep _ vars1 vars2) = ppVars vars1 <+> arrow unicode <+> ppVars vars2
         ppVars = hsep . map ((ppDocName qual Prefix True) . unLoc)
 
 ppShortClassDecl :: Bool -> LinksInfo -> TyClDecl DocNameI -> SrcSpan
@@ -693,7 +693,7 @@ ppInstanceSigs links splice unicode qual sigs = do
         L _ rtyp = hsSigWcType typ
     -- Instance methods signatures are synified and thus don't have a useful
     -- SrcSpan value. Use the methods name location instead.
-    return $ ppSimpleSig links splice unicode qual HideEmptyContexts (getLoc $ head $ lnames) names rtyp
+    return $ ppSimpleSig links splice unicode qual HideEmptyContexts (locA $ getLoc $ head $ lnames) names rtyp
 
 
 lookupAnySubdoc :: Eq id1 => id1 -> [(id1, DocForDecl id2)] -> DocForDecl id2
@@ -827,7 +827,7 @@ ppShortConstrParts summary dataInst con unicode qual
                 , con_ex_tvs = vars
                 , con_mb_cxt = cxt
                 } -> let tyVars = map (getName . hsLTyVarNameI) vars
-                         context = unLoc (fromMaybe (noLoc []) cxt)
+                         context = unLoc (fromMaybe (noLocA []) cxt)
                          forall_ = False
                          header_ = ppConstrHdr forall_ tyVars context unicode qual
                      in case det of
@@ -900,7 +900,7 @@ ppSideBySideConstr subdocs fixities unicode pkg qual (L _ con)
                 , con_ex_tvs = vars
                 , con_mb_cxt = cxt
                 } -> let tyVars = map (getName . hsLTyVarNameI) vars
-                         context = unLoc (fromMaybe (noLoc []) cxt)
+                         context = unLoc (fromMaybe (noLocA []) cxt)
                          forall_ = False
                          header_ = ppConstrHdr forall_ tyVars context unicode qual
                      in case det of
@@ -1014,7 +1014,7 @@ ppShortField summary unicode qual (ConDeclField _ names ltype _)
 
 -- | Pretty print an expanded pattern (for bundled patterns)
 ppSideBySidePat :: [(DocName, Fixity)] -> Unicode -> Qualification
-                   -> [Located DocName]    -- ^ pattern name(s)
+                   -> [LocatedA DocName]   -- ^ pattern name(s)
                    -> LHsSigType DocNameI  -- ^ type of pattern(s)
                    -> DocForDecl DocName   -- ^ doc map
                    -> SubDecl
@@ -1092,7 +1092,7 @@ sumParens = ubxSumList
 -- * Rendering of HsType
 --------------------------------------------------------------------------------
 
-ppLType, ppLParendType, ppLFunLhType :: Unicode -> Qualification -> HideEmptyContexts -> Located (HsType DocNameI) -> Html
+ppLType, ppLParendType, ppLFunLhType :: Unicode -> Qualification -> HideEmptyContexts -> LHsType DocNameI -> Html
 ppLType       unicode qual emptyCtxts y = ppType unicode qual emptyCtxts (unLoc y)
 ppLParendType unicode qual emptyCtxts y = ppParendType unicode qual emptyCtxts (unLoc y)
 ppLFunLhType  unicode qual emptyCtxts y = ppFunLhType unicode qual emptyCtxts (unLoc y)
