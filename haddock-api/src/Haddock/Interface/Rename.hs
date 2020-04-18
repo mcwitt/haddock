@@ -150,7 +150,7 @@ rename :: Name -> RnM DocName
 rename = lookupRn
 
 
-renameL :: Located Name -> RnM (Located DocName)
+renameL :: LocatedA Name -> RnM (LocatedA DocName)
 renameL = mapM rename
 
 
@@ -212,10 +212,10 @@ renameFamilyResultSig (L loc (TyVarSig _ bndr))
          ; return (L loc (TyVarSig noExtField bndr')) }
 
 renameInjectivityAnn :: LInjectivityAnn GhcRn -> RnM (LInjectivityAnn DocNameI)
-renameInjectivityAnn (L loc (InjectivityAnn lhs rhs))
+renameInjectivityAnn (L loc (InjectivityAnn _ lhs rhs))
     = do { lhs' <- renameL lhs
          ; rhs' <- mapM renameL rhs
-         ; return (L loc (InjectivityAnn lhs' rhs')) }
+         ; return (L loc (InjectivityAnn noExtField lhs' rhs')) }
 
 renameMaybeInjectivityAnn :: Maybe (LInjectivityAnn GhcRn)
                           -> RnM (Maybe (LInjectivityAnn DocNameI))
@@ -226,66 +226,66 @@ renameType t = case t of
   HsForAllTy { hst_fvf = fvf, hst_bndrs = tyvars, hst_body = ltype } -> do
     tyvars'   <- mapM renameLTyVarBndr tyvars
     ltype'    <- renameLType ltype
-    return (HsForAllTy { hst_fvf = fvf, hst_xforall = noExtField
+    return (HsForAllTy { hst_fvf = fvf, hst_xforall = noAnn
                        , hst_bndrs = tyvars', hst_body = ltype' })
 
   HsQualTy { hst_ctxt = lcontext , hst_body = ltype } -> do
     lcontext' <- renameLContext lcontext
     ltype'    <- renameLType ltype
-    return (HsQualTy { hst_xqual = noExtField, hst_ctxt = lcontext', hst_body = ltype' })
+    return (HsQualTy { hst_xqual = noAnn, hst_ctxt = lcontext', hst_body = ltype' })
 
-  HsTyVar _ ip (L l n) -> return . HsTyVar noExtField ip . L l =<< rename n
-  HsBangTy _ b ltype -> return . HsBangTy noExtField b =<< renameLType ltype
+  HsTyVar _ ip (L l n) -> return . HsTyVar noAnn ip . L l =<< rename n
+  HsBangTy _ b ltype -> return . HsBangTy noAnn b =<< renameLType ltype
 
-  HsStarTy _ isUni -> return (HsStarTy noExtField isUni)
+  HsStarTy _ isUni -> return (HsStarTy noAnn isUni)
 
   HsAppTy _ a b -> do
     a' <- renameLType a
     b' <- renameLType b
-    return (HsAppTy noExtField a' b')
+    return (HsAppTy noAnn a' b')
 
   HsAppKindTy _ a b -> do
     a' <- renameLType a
     b' <- renameLKind b
-    return (HsAppKindTy noExtField a' b')
+    return (HsAppKindTy noAnn a' b')
 
   HsFunTy _ a b -> do
     a' <- renameLType a
     b' <- renameLType b
-    return (HsFunTy noExtField a' b')
+    return (HsFunTy noAnn a' b')
 
-  HsListTy _ ty -> return . (HsListTy noExtField) =<< renameLType ty
-  HsIParamTy _ n ty -> liftM (HsIParamTy noExtField n) (renameLType ty)
+  HsListTy _ ty -> return . (HsListTy noAnn) =<< renameLType ty
+  HsIParamTy _ n ty -> liftM (HsIParamTy noAnn n) (renameLType ty)
 
-  HsTupleTy _ b ts -> return . HsTupleTy noExtField b =<< mapM renameLType ts
-  HsSumTy _ ts -> HsSumTy noExtField <$> mapM renameLType ts
+  HsTupleTy _ b ts -> return . HsTupleTy noAnn b =<< mapM renameLType ts
+  HsSumTy _ ts -> HsSumTy noAnn <$> mapM renameLType ts
 
   HsOpTy _ a (L loc op) b -> do
     op' <- rename op
     a'  <- renameLType a
     b'  <- renameLType b
-    return (HsOpTy noExtField a' (L loc op') b')
+    return (HsOpTy noAnn a' (L loc op') b')
 
-  HsParTy _ ty -> return . (HsParTy noExtField) =<< renameLType ty
+  HsParTy _ ty -> return . (HsParTy noAnn) =<< renameLType ty
 
   HsKindSig _ ty k -> do
     ty' <- renameLType ty
     k' <- renameLKind k
-    return (HsKindSig noExtField ty' k')
+    return (HsKindSig noAnn ty' k')
 
   HsDocTy _ ty doc -> do
     ty' <- renameLType ty
     doc' <- renameLDocHsSyn doc
-    return (HsDocTy noExtField ty' doc')
+    return (HsDocTy noAnn ty' doc')
 
-  HsTyLit _ x -> return (HsTyLit noExtField x)
+  HsTyLit _ x -> return (HsTyLit noAnn x)
 
-  HsRecTy _ a               -> HsRecTy noExtField <$> mapM renameConDeclFieldField a
+  HsRecTy _ a               -> HsRecTy noAnn <$> mapM renameConDeclFieldField a
   (XHsType (NHsCoreTy a))   -> pure (XHsType (NHsCoreTy a))
-  HsExplicitListTy i a b  -> HsExplicitListTy i a <$> mapM renameLType b
-  HsExplicitTupleTy a b   -> HsExplicitTupleTy a <$> mapM renameLType b
+  HsExplicitListTy _ a b  -> HsExplicitListTy noAnn a <$> mapM renameLType b
+  HsExplicitTupleTy _ b   -> HsExplicitTupleTy noAnn <$> mapM renameLType b
   HsSpliceTy _ s          -> renameHsSpliceTy s
-  HsWildCardTy a          -> pure (HsWildCardTy a)
+  HsWildCardTy _          -> pure (HsWildCardTy noAnn)
 
 -- | Rename splices, but _only_ those that turn out to be for types.
 -- I think this is actually safe for our possible inputs:
@@ -305,15 +305,15 @@ renameLHsQTyVars (HsQTvs { hsq_explicit = tvs })
                         , hsq_explicit = tvs' }) }
 
 renameLTyVarBndr :: LHsTyVarBndr flag GhcRn -> RnM (LHsTyVarBndr flag DocNameI)
-renameLTyVarBndr (L loc (UserTyVar x fl (L l n)))
+renameLTyVarBndr (L loc (UserTyVar _ fl (L l n)))
   = do { n' <- rename n
-       ; return (L loc (UserTyVar x fl (L l n'))) }
-renameLTyVarBndr (L loc (KindedTyVar x fl (L lv n) kind))
+       ; return (L loc (UserTyVar noExtField fl (L l n'))) }
+renameLTyVarBndr (L loc (KindedTyVar _ fl (L lv n) kind))
   = do { n' <- rename n
        ; kind' <- renameLKind kind
-       ; return (L loc (KindedTyVar x fl (L lv n') kind')) }
+       ; return (L loc (KindedTyVar noExtField fl (L lv n') kind')) }
 
-renameLContext :: Located [LHsType GhcRn] -> RnM (Located [LHsType DocNameI])
+renameLContext :: LocatedA [LHsType GhcRn] -> RnM (LocatedA [LHsType DocNameI])
 renameLContext (L loc context) = do
   context' <- mapM renameLType context
   return (L loc context')
@@ -404,10 +404,11 @@ renameTyClD d = case d of
                       , tcdATs = ats', tcdATDefs = at_defs', tcdDocs = [], tcdCExt = noExtField })
 
   where
-    renameLFunDep (L loc (xs, ys)) = do
+    renameLFunDep :: LHsFunDep GhcRn -> RnM (LHsFunDep DocNameI)
+    renameLFunDep (L loc (FunDep _ xs ys)) = do
       xs' <- mapM rename (map unLoc xs)
       ys' <- mapM rename (map unLoc ys)
-      return (L loc (map noLoc xs', map noLoc ys'))
+      return (L loc (FunDep noExtField (map noLocA xs') (map noLocA ys')))
 
     renameLSig (L loc sig) = return . L loc =<< renameSig sig
 
@@ -564,10 +565,10 @@ renameDerivD (DerivDecl { deriv_type = ty
                     , deriv_overlap_mode = omode })
 
 renameDerivStrategy :: DerivStrategy GhcRn -> RnM (DerivStrategy DocNameI)
-renameDerivStrategy StockStrategy    = pure StockStrategy
-renameDerivStrategy AnyclassStrategy = pure AnyclassStrategy
-renameDerivStrategy NewtypeStrategy  = pure NewtypeStrategy
-renameDerivStrategy (ViaStrategy ty) = ViaStrategy <$> renameLSigType ty
+renameDerivStrategy (StockStrategy a)    = pure (StockStrategy a)
+renameDerivStrategy (AnyclassStrategy a) = pure (AnyclassStrategy a)
+renameDerivStrategy (NewtypeStrategy a)  = pure (NewtypeStrategy a)
+renameDerivStrategy (ViaStrategy ty)     = ViaStrategy <$> renameLSigType ty
 
 renameClsInstD :: ClsInstDecl GhcRn -> RnM (ClsInstDecl DocNameI)
 renameClsInstD (ClsInstDecl { cid_overlap_mode = omode
