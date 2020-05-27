@@ -366,7 +366,7 @@ instance (OutputableBndrId p)
 -- 'PseudoFamilyDecl' type is introduced.
 data PseudoFamilyDecl name = PseudoFamilyDecl
     { pfdInfo :: FamilyInfo name
-    , pfdLName :: LocatedA (IdP name)
+    , pfdLName :: ApiAnnName (IdP name)
     , pfdTyVars :: [LHsType name]
     , pfdKindSig :: LFamilyResultSig name
     }
@@ -381,10 +381,10 @@ mkPseudoFamilyDecl (FamilyDecl { .. }) = PseudoFamilyDecl
     }
   where
     mkType :: HsTyVarBndr flag (GhcPass p) -> HsType (GhcPass p)
-    mkType (KindedTyVar _ _ (L loc name) lkind) =
+    mkType (KindedTyVar _ _ (N loc name) lkind) =
         HsKindSig noAnn tvar lkind
       where
-        tvar = L loc (HsTyVar noAnn NotPromoted (L loc name))
+        tvar = L loc (HsTyVar noAnn NotPromoted (N loc name))
     mkType (UserTyVar _ _ name) = HsTyVar noAnn NotPromoted name
 
 
