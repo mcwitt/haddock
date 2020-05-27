@@ -155,7 +155,7 @@ addClassContext _ _ sig = sig   -- E.g. a MinimalSig is fine
 
 lHsQTyVarsToTypes :: LHsQTyVars GhcRn -> [LHsTypeArg GhcRn]
 lHsQTyVarsToTypes tvs
-  = [ HsValArg $ noLocA (HsTyVar noAnn NotPromoted (noLocA (hsLTyVarName tv)))
+  = [ HsValArg $ noLocA (HsTyVar noAnn NotPromoted (noApiName (hsLTyVarName tv)))
     | tv <- hsQTvExplicit tvs ]
 
 --------------------------------------------------------------------------------
@@ -185,7 +185,7 @@ restrictDataDefn names defn@(HsDataDefn { dd_ND = new_or_data, dd_cons = cons })
 restrictCons :: [Name] -> [LConDecl GhcRn] -> [LConDecl GhcRn]
 restrictCons names decls = [ L p d | L p (Just d) <- map (fmap keep) decls ]
   where
-    keep d | any (\n -> n `elem` names) (map unLoc $ getConNames d) =
+    keep d | any (\n -> n `elem` names) (map unApiName $ getConNames d) =
       case con_args d of
         PrefixCon _ -> Just d
         RecCon fields
@@ -209,7 +209,7 @@ restrictDecls names = mapMaybe (filterLSigNames (`elem` names))
 
 
 restrictATs :: [Name] -> [LFamilyDecl GhcRn] -> [LFamilyDecl GhcRn]
-restrictATs names ats = [ at | at <- ats , unL (fdLName (unL at)) `elem` names ]
+restrictATs names ats = [ at | at <- ats , unN (fdLName (unL at)) `elem` names ]
 
 emptyHsQTvs :: LHsQTyVars GhcRn
 -- This function is here, rather than in HsTypes, because it *renamed*, but

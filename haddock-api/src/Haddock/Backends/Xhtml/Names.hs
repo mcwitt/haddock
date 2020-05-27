@@ -11,7 +11,7 @@
 -- Portability :  portable
 -----------------------------------------------------------------------------
 module Haddock.Backends.Xhtml.Names (
-  ppName, ppDocName, ppLDocName, ppRdrName, ppUncheckedLink,
+  ppName, ppDocName, ppLDocName, ppNDocName, ppRdrName, ppUncheckedLink,
   ppBinder, ppBinderInfix, ppBinder',
   ppModule, ppModuleRef, ppIPName, linkId, Notation(..)
 ) where
@@ -56,6 +56,10 @@ ppUncheckedLink _ (mdl, occ) = linkIdOcc' mdl (Just occ) << ppOccName occ -- TOD
 -- The Bool indicates if it is to be rendered in infix notation
 ppLDocName :: Qualification -> Notation -> LocatedA DocName -> Html
 ppLDocName qual notation (L _ d) = ppDocName qual notation True d
+
+-- The Bool indicates if it is to be rendered in infix notation
+ppNDocName :: Qualification -> Notation -> ApiAnnName DocName -> Html
+ppNDocName qual notation (N _ d) = ppDocName qual notation True d
 
 ppDocName :: Qualification -> Notation -> Bool -> DocName -> Html
 ppDocName qual notation insertAnchors docName =
