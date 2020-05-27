@@ -130,8 +130,8 @@ ppExport dflags ExportDecl { expItemDecl    = L _ decl
         f (TyClD _ d@SynDecl{})   = ppSynonym dflags d
         f (TyClD _ d@ClassDecl{}) = ppClass dflags d subdocs
         f (TyClD _ (FamDecl _ d)) = ppFam dflags d
-        f (ForD _ (ForeignImport _ name typ _)) = [pp_sig dflags [name] (hsSigType typ)]
-        f (ForD _ (ForeignExport _ name typ _)) = [pp_sig dflags [name] (hsSigType typ)]
+        f (ForD _ (ForeignImport _ name typ _)) = [pp_sigN dflags [name] (hsSigType typ)]
+        f (ForD _ (ForeignExport _ name typ _)) = [pp_sigN dflags [name] (hsSigType typ)]
         f (SigD _ sig) = ppSig dflags sig
         f _ = []
 
@@ -144,11 +144,17 @@ ppSigWithDoc dflags sig subdocs = case sig of
     PatSynSig _ names t -> concatMap (mkDocSig "pattern " (hsSigType t)) names
     _ -> []
   where
-    mkDocSig leader typ n = mkSubdoc dflags n subdocs
-                                     [leader ++ pp_sig dflags [n] typ]
+    mkDocSig leader typ n = mkSubdocN dflags n subdocs
+                                      [leader ++ pp_sigN dflags [n] typ]
 
 ppSig :: DynFlags -> Sig GhcRn -> [String]
 ppSig dflags x  = ppSigWithDoc dflags x []
+
+pp_sigN :: DynFlags -> [ApiAnnName Name] -> LHsType GhcRn -> String
+pp_sigN dflags names (L _ typ)  =
+    operator prettyNames ++ " :: " ++ outHsType dflags typ
+    where
+      prettyNames = intercalate ", " $ map (out dflags) names
 
 pp_sig :: DynFlags -> [LocatedA Name] -> LHsType GhcRn -> String
 pp_sig dflags names (L _ typ)  =
@@ -177,7 +183,7 @@ ppClass dflags decl subdocs =
 
         pprTyFam :: LFamilyDecl GhcRn -> SDoc
         pprTyFam (L _ at) = vcat' $ map text $
-            mkSubdoc dflags (fdLName at) subdocs (ppFam dflags at)
+            mkSubdocN dflags (fdLName at) subdocs (ppFam dflags at)
 
         whereWrapper elems = vcat'
             [ text "where" <+> lbrace
@@ -225,8 +231,8 @@ ppData dflags decl@(DataDecl { tcdDataDefn = defn }) subdocs
 ppData _ _ _ = panic "ppData"
 
 -- | for constructors, and named-fields...
-lookupCon :: DynFlags -> [(Name, DocForDecl Name)] -> LocatedA Name -> [String]
-lookupCon dflags subdocs (L _ name) = case lookup name subdocs of
+lookupCon :: DynFlags -> [(Name, DocForDecl Name)] -> ApiAnnName Name -> [String]
+lookupCon dflags subdocs (N _ name) = case lookup name subdocs of
   Just (d, _) -> ppDocumentation dflags d
   _ -> []
 
@@ -238,7 +244,7 @@ ppCtor dflags dat subdocs con@ConDeclH98 {}
         f (PrefixCon args) = [typeSig name $ args ++ [resType]]
         f (InfixCon a1 a2) = f $ PrefixCon [a1,a2]
         f (RecCon (L _ recs)) = f (PrefixCon $ map cd_fld_type (map unLoc recs)) ++ concat
-                          [(concatMap (lookupCon dflags subdocs . noLocA . extFieldOcc . unLoc) (cd_fld_names r)) ++
+                          [(concatMap (lookupCon dflags subdocs . noApiName . extFieldOcc . unLoc) (cd_fld_names r)) ++
                            [out dflags (map (extFieldOcc . unLoc) $ cd_fld_names r) `typeSig` [resType, cd_fld_type r]]
                           | r <- map unLoc recs]
 
@@ -249,14 +255,14 @@ ppCtor dflags dat subdocs con@ConDeclH98 {}
 
         -- We print the constructors as comma-separated list. See GHC
         -- docs for con_names on why it is a list to begin with.
-        name = commaSeparate dflags . map unL $ getConNames con
+        name = commaSeparate dflags . map unN $ getConNames con
 
         tyVarArg (UserTyVar _ _ n) = HsTyVar noAnn NotPromoted n
         tyVarArg (KindedTyVar _ _ n lty) = HsKindSig noAnn (reL (HsTyVar noAnn NotPromoted n)) lty
         tyVarArg _ = panic "ppCtor"
 
         resType = apps $ map reL $
-                        (HsTyVar noAnn NotPromoted (reL (tcdName dat))) :
+                        (HsTyVar noAnn NotPromoted (reN (tcdName dat))) :
                         map (tyVarArg . unLoc) (hsQTvExplicit $ tyClDeclTyVars dat)
 
 ppCtor dflags _dat subdocs con@(ConDeclGADT { })
@@ -265,10 +271,10 @@ ppCtor dflags _dat subdocs con@(ConDeclGADT { })
         f = [typeSig name (getGADTConTypeG con)]
 
         typeSig nm ty = operator nm ++ " :: " ++ outHsType dflags (unL ty)
-        name = out dflags $ map unL $ getConNames con
+        name = out dflags $ map unN $ getConNames con
 
 ppFixity :: DynFlags -> (Name, Fixity) -> [String]
-ppFixity dflags (name, fixity) = [out dflags ((FixitySig noExtField [noLocA name] fixity) :: FixitySig GhcRn)]
+ppFixity dflags (name, fixity) = [out dflags ((FixitySig noExtField [noApiName name] fixity) :: FixitySig GhcRn)]
 
 
 ---------------------------------------------------------------------
@@ -290,6 +296,9 @@ docWith dflags header d
   = ("":) $ zipWith (++) ("-- | " : repeat "--   ") $
     lines header ++ ["" | header /= "" && isJust d] ++
     maybe [] (showTags . markup (markupTag dflags)) d
+
+mkSubdocN :: DynFlags -> ApiAnnName Name -> [(Name, DocForDecl Name)] -> [String] -> [String]
+mkSubdocN dflags n subdocs s = mkSubdoc dflags (n2l n) subdocs s
 
 mkSubdoc :: DynFlags -> LocatedA Name -> [(Name, DocForDecl Name)] -> [String] -> [String]
 mkSubdoc dflags n subdocs s = concatMap (ppDocumentation dflags) getDoc ++ s

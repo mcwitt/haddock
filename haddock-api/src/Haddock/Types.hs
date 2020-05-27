@@ -366,7 +366,7 @@ instance (OutputableBndrId p)
 -- 'PseudoFamilyDecl' type is introduced.
 data PseudoFamilyDecl name = PseudoFamilyDecl
     { pfdInfo :: FamilyInfo name
-    , pfdLName :: LocatedA (IdP name)
+    , pfdLName :: ApiAnnName (IdP name)
     , pfdTyVars :: [LHsType name]
     , pfdKindSig :: LFamilyResultSig name
     }
@@ -381,10 +381,10 @@ mkPseudoFamilyDecl (FamilyDecl { .. }) = PseudoFamilyDecl
     }
   where
     mkType :: HsTyVarBndr flag (GhcPass p) -> HsType (GhcPass p)
-    mkType (KindedTyVar _ _ (L loc name) lkind) =
+    mkType (KindedTyVar _ _ (N loc name) lkind) =
         HsKindSig noAnn tvar lkind
       where
-        tvar = L loc (HsTyVar noAnn NotPromoted (L loc name))
+        tvar = L (na2la loc) (HsTyVar noAnn NotPromoted (N loc name))
     mkType (UserTyVar _ _ name) = HsTyVar noAnn NotPromoted name
 
 
@@ -679,11 +679,11 @@ type instance XStarTy          DocNameI = ApiAnn
 type instance XAppTy           DocNameI = ApiAnn
 type instance XAppKindTy       DocNameI = ApiAnn
 type instance XFunTy           DocNameI = ApiAnn
-type instance XListTy          DocNameI = ApiAnn
-type instance XTupleTy         DocNameI = ApiAnn
-type instance XSumTy           DocNameI = ApiAnn
+type instance XListTy          DocNameI = ApiAnn' AnnParen
+type instance XTupleTy         DocNameI = ApiAnn' AnnParen
+type instance XSumTy           DocNameI = ApiAnn' AnnParen
 type instance XOpTy            DocNameI = ApiAnn
-type instance XParTy           DocNameI = ApiAnn
+type instance XParTy           DocNameI = ApiAnn' AnnParen
 type instance XIParamTy        DocNameI = ApiAnn
 type instance XKindSig         DocNameI = ApiAnn
 type instance XSpliceTy        DocNameI = ApiAnn
