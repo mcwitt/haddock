@@ -213,7 +213,7 @@ processExports (e : es) =
 isSimpleSig :: ExportItem DocNameI -> Maybe ([DocName], HsType DocNameI)
 isSimpleSig ExportDecl { expItemDecl = L _ (SigD _ (TypeSig _ lnames t))
                        , expItemMbDoc = (Documentation Nothing Nothing, argDocs) }
-  | Map.null argDocs = Just (map unLoc lnames, unLoc (hsSigWcType t))
+  | Map.null argDocs = Just (map unApiName lnames, unLoc (hsSigWcType t))
 isSimpleSig _ = Nothing
 
 
@@ -252,8 +252,8 @@ declNames :: LHsDecl DocNameI
              )
 declNames (L _ decl) = case decl of
   TyClD _ d  -> (empty, [tcdNameI d])
-  SigD _ (TypeSig _ lnames _ ) -> (empty, map unLoc lnames)
-  SigD _ (PatSynSig _ lnames _) -> (text "pattern", map unLoc lnames)
+  SigD _ (TypeSig _ lnames _ ) -> (empty, map unApiName lnames)
+  SigD _ (PatSynSig _ lnames _) -> (text "pattern", map unApiName lnames)
   ForD _ (ForeignImport _ (L _ n) _ _) -> (empty, [n])
   ForD _ (ForeignExport _ (L _ n) _ _) -> (empty, [n])
   _ -> error "declaration not supported by declNames"
@@ -296,8 +296,8 @@ ppDecl decl pats (doc, fnArgsDoc) instances subdocs _fxts = case unLoc decl of
 --    | Just _  <- tcdTyPats d    -> ppTyInst False loc doc d unicode
 -- Family instances happen via FamInst now
   TyClD _ d@ClassDecl{}          -> ppClassDecl instances doc subdocs d unicode
-  SigD _ (TypeSig _ lnames ty)   -> ppFunSig (doc, fnArgsDoc) (map unLoc lnames) (hsSigWcType ty) unicode
-  SigD _ (PatSynSig _ lnames ty) -> ppLPatSig (doc, fnArgsDoc) (map unLoc lnames) ty unicode
+  SigD _ (TypeSig _ lnames ty)   -> ppFunSig (doc, fnArgsDoc) (map unApiName lnames) (hsSigWcType ty) unicode
+  SigD _ (PatSynSig _ lnames ty) -> ppLPatSig (doc, fnArgsDoc) (map unApiName lnames) ty unicode
   ForD _ d                       -> ppFor (doc, fnArgsDoc) d unicode
   InstD _ _                      -> empty
   DerivD _ _                     -> empty
@@ -621,7 +621,7 @@ ppClassDecl instances doc subdocs
       vcat  [ ppFunSig doc names (hsSigWcType typ) unicode
             | L _ (TypeSig _ lnames typ) <- lsigs
             , let doc = lookupAnySubdoc (head names) subdocs
-                  names = map unLoc lnames ]
+                  names = map unApiName lnames ]
               -- FIXME: is taking just the first name ok? Is it possible that
               -- there are different subdocs for different names in a single
               -- type signature?
@@ -851,7 +851,7 @@ ppSideBySideField subdocs unicode (ConDeclField _ names ltype _) =
 
 
 -- | Pretty-print a bundled pattern synonym
-ppSideBySidePat :: [LocatedA DocName]   -- ^ pattern name(s)
+ppSideBySidePat :: [ApiAnnName DocName]   -- ^ pattern name(s)
                 -> LHsSigType DocNameI  -- ^ type of pattern(s)
                 -> DocForDecl DocName   -- ^ doc map
                 -> Bool                 -- ^ unicode
@@ -861,7 +861,7 @@ ppSideBySidePat lnames typ (doc, argDocs) unicode =
   $$ fieldPart
   where
     hasArgDocs = not $ Map.null argDocs
-    ppOcc = hsep (punctuate comma (map (ppDocBinder . unLoc) lnames))
+    ppOcc = hsep (punctuate comma (map (ppDocBinder . unApiName) lnames))
 
     decl | hasArgDocs = keyword "pattern" <+> ppOcc
          | otherwise = hsep [ keyword "pattern"

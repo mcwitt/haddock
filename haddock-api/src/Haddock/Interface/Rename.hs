@@ -153,6 +153,8 @@ rename = lookupRn
 renameL :: LocatedA Name -> RnM (LocatedA DocName)
 renameL = mapM rename
 
+renameN :: ApiAnnName Name -> RnM (ApiAnnName DocName)
+renameN = mapM rename
 
 renameExportItems :: [ExportItem GhcRn] -> RnM [ExportItem DocNameI]
 renameExportItems = mapM renameExportItem
@@ -510,19 +512,19 @@ renameLFieldOcc (L l (FieldOcc sel lbl)) = do
 renameSig :: Sig GhcRn -> RnM (Sig DocNameI)
 renameSig sig = case sig of
   TypeSig _ lnames ltype -> do
-    lnames' <- mapM renameL lnames
+    lnames' <- mapM renameN lnames
     ltype' <- renameLSigWcType ltype
     return (TypeSig noExtField lnames' ltype')
   ClassOpSig _ is_default lnames sig_ty -> do
-    lnames' <- mapM renameL lnames
+    lnames' <- mapM renameN lnames
     ltype' <- renameLSigType sig_ty
     return (ClassOpSig noExtField is_default lnames' ltype')
   PatSynSig _ lnames sig_ty -> do
-    lnames' <- mapM renameL lnames
+    lnames' <- mapM renameN lnames
     sig_ty' <- renameLSigType sig_ty
     return $ PatSynSig noExtField lnames' sig_ty'
   FixSig _ (FixitySig _ lnames fixity) -> do
-    lnames' <- mapM renameL lnames
+    lnames' <- mapM renameN lnames
     return $ FixSig noExtField (FixitySig noExtField lnames' fixity)
   MinimalSig _ src (L l s) -> do
     s' <- traverse renameL s

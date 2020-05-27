@@ -72,10 +72,10 @@ ppDecl summ links (L loc decl) pats (mbDoc, fnArgsDoc) instances fixities subdoc
 
 
 ppLFunSig :: Bool -> LinksInfo -> SrcSpan -> DocForDecl DocName ->
-             [LocatedA DocName] -> LHsType DocNameI -> [(DocName, Fixity)] ->
+             [ApiAnnName DocName] -> LHsType DocNameI -> [(DocName, Fixity)] ->
              Splice -> Unicode -> Maybe Package -> Qualification -> Html
 ppLFunSig summary links loc doc lnames lty fixities splice unicode pkg qual =
-  ppFunSig summary links loc doc (map unLoc lnames) lty fixities
+  ppFunSig summary links loc doc (map unApiName lnames) lty fixities
            splice unicode pkg qual
 
 ppFunSig :: Bool -> LinksInfo -> SrcSpan -> DocForDecl DocName ->
@@ -89,12 +89,12 @@ ppFunSig summary links loc doc docnames typ fixities splice unicode pkg qual =
 
 -- | Pretty print a pattern synonym
 ppLPatSig :: Bool -> LinksInfo -> SrcSpan -> DocForDecl DocName
-          -> [LocatedA DocName]    -- ^ names of patterns in declaration
+          -> [ApiAnnName DocName]    -- ^ names of patterns in declaration
           -> LHsType DocNameI      -- ^ type of patterns in declaration
           -> [(DocName, Fixity)]
           -> Splice -> Unicode -> Maybe Package -> Qualification -> Html
 ppLPatSig summary links loc doc lnames typ fixities splice unicode pkg qual =
-  ppSigLike summary links loc (keyword "pattern") doc (map unLoc lnames) fixities
+  ppSigLike summary links loc (keyword "pattern") doc (map unApiName lnames) fixities
             (unLoc typ, pp_typ) splice unicode pkg qual (patSigContext typ)
   where
     pp_typ = ppPatSigType unicode qual typ
@@ -520,7 +520,7 @@ ppShortClassDecl summary links (ClassDecl { tcdCtxt = lctxt, tcdLName = lname, t
                        [] splice unicode pkg qual
               | L _ (ClassOpSig _ False lnames typ) <- sigs
               , let doc = lookupAnySubdoc (head names) subdocs
-                    names = map unLoc lnames ]
+                    names = map unApiName lnames ]
               -- FIXME: is taking just the first name ok? Is it possible that
               -- there are different subdocs for different names in a single
               -- type signature?
@@ -569,7 +569,7 @@ ppClassDecl summary links instances fixities loc d subdocs
     methodBit = subMethods [ ppFunSig summary links loc doc [name] (hsSigTypeI typ)
                                       subfixs splice unicode pkg qual
                            | L _ (ClassOpSig _ _ lnames typ) <- lsigs
-                           , name <- map unLoc lnames
+                           , name <- map unApiName lnames
                            , let doc = lookupAnySubdoc name subdocs
                                  subfixs = [ f | f@(n',_) <- fixities
                                                , name == n' ]
@@ -580,12 +580,12 @@ ppClassDecl summary links instances fixities loc d subdocs
     minimalBit = case [ s | MinimalSig _ _ (L _ s) <- sigs ] of
       -- Miminal complete definition = every shown method
       And xs : _ | sort [getName n | L _ (Var (L _ n)) <- xs] ==
-                   sort [getName n | ClassOpSig _ _ ns _ <- sigs, L _ n <- ns]
+                   sort [getName n | ClassOpSig _ _ ns _ <- sigs, N _ n <- ns]
         -> noHtml
 
       -- Minimal complete definition = the only shown method
       Var (L _ n) : _ | [getName n] ==
-                        [getName n' | L _ (ClassOpSig _ _ ns _) <- lsigs, L _ n' <- ns]
+                        [getName n' | L _ (ClassOpSig _ _ ns _) <- lsigs, N _ n' <- ns]
         -> noHtml
 
       -- Minimal complete definition = nothing
@@ -689,11 +689,11 @@ ppInstanceSigs :: LinksInfo -> Splice -> Unicode -> Qualification
               -> [Html]
 ppInstanceSigs links splice unicode qual sigs = do
     TypeSig _ lnames typ <- sigs
-    let names = map unLoc lnames
+    let names = map unApiName lnames
         L _ rtyp = hsSigWcType typ
     -- Instance methods signatures are synified and thus don't have a useful
     -- SrcSpan value. Use the methods name location instead.
-    return $ ppSimpleSig links splice unicode qual HideEmptyContexts (locA $ getLoc $ head $ lnames) names rtyp
+    return $ ppSimpleSig links splice unicode qual HideEmptyContexts (getLocN $ head $ lnames) names rtyp
 
 
 lookupAnySubdoc :: Eq id1 => id1 -> [(id1, DocForDecl id2)] -> DocForDecl id2
@@ -805,7 +805,7 @@ ppDataDecl summary links instances fixities subdocs loc doc dataDecl pats
       [ ppSideBySidePat subfixs unicode qual lnames typ d
       | (SigD _ (PatSynSig _ lnames typ), d) <- pats
       , let subfixs = filter (\(n,_) -> any (\cn -> cn == n)
-                                            (map unLoc lnames)) fixities
+                                            (map unApiName lnames)) fixities
       ]
 
     instancesBit = ppInstances links (OriginData docname) instances
@@ -1014,7 +1014,7 @@ ppShortField summary unicode qual (ConDeclField _ names ltype _)
 
 -- | Pretty print an expanded pattern (for bundled patterns)
 ppSideBySidePat :: [(DocName, Fixity)] -> Unicode -> Qualification
-                   -> [LocatedA DocName]   -- ^ pattern name(s)
+                   -> [ApiAnnName DocName]   -- ^ pattern name(s)
                    -> LHsSigType DocNameI  -- ^ type of pattern(s)
                    -> DocForDecl DocName   -- ^ doc map
                    -> SubDecl

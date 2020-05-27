@@ -146,11 +146,11 @@ tyThingToLHsDecl prr t = case t of
   ACoAxiom ax -> synifyAxiom ax >>= allOK
 
   -- a data-constructor alone just gets rendered as a function:
-  AConLike (RealDataCon dc) -> allOK $ SigD noExtField (TypeSig noAnn [synifyName dc]
+  AConLike (RealDataCon dc) -> allOK $ SigD noExtField (TypeSig noAnn [synifyNameN dc]
     (synifySigWcType ImplicitizeForAll [] (dataConUserType dc)))
 
   AConLike (PatSynCon ps) ->
-    allOK . SigD noExtField $ PatSynSig noAnn [synifyName ps] (synifyPatSynSigType ps)
+    allOK . SigD noExtField $ PatSynSig noAnn [synifyNameN ps] (synifyPatSynSigType ps)
   where
     withErrs e x = return (e, x)
     allOK x = return (mempty, x)
@@ -410,6 +410,9 @@ synifyDataCon use_gadt_syntax dc =
                          , con_args   = hat
                          , con_doc    = Nothing }
 
+synifyNameN :: NamedThing n => n -> ApiAnnName Name
+synifyNameN n = N (noAnnSrcSpan $ srcLocSpan (getSrcLoc n)) (getName n)
+
 synifyName :: NamedThing n => n -> LocatedA Name
 synifyName n = L (noAnnSrcSpan $ srcLocSpan (getSrcLoc n)) (getName n)
 
@@ -426,7 +429,7 @@ synifyIdSig
   -> [TyVar]          -- ^ free variables in the type to convert
   -> Id               -- ^ the 'Id' from which to get the type signature
   -> Sig GhcRn
-synifyIdSig prr s vs i = TypeSig noAnn [synifyName i] (synifySigWcType s vs t)
+synifyIdSig prr s vs i = TypeSig noAnn [synifyNameN i] (synifySigWcType s vs t)
   where
     t = defaultType prr (varType i)
 
@@ -435,8 +438,8 @@ synifyIdSig prr s vs i = TypeSig noAnn [synifyName i] (synifySigWcType s vs t)
 -- 'ClassOpSig'.
 synifyTcIdSig :: [TyVar] -> ClassOpItem -> [Sig GhcRn]
 synifyTcIdSig vs (i, dm) =
-  [ ClassOpSig noAnn False [synifyName i] (mainSig (varType i)) ] ++
-  [ ClassOpSig noAnn True [noLocA dn] (defSig dt)
+  [ ClassOpSig noAnn False [synifyNameN i] (mainSig (varType i)) ] ++
+  [ ClassOpSig noAnn True [noApiName dn] (defSig dt)
   | Just (dn, GenericDM dt) <- [dm] ]
   where
     mainSig t = synifySigType DeleteTopLevelQuantification vs t

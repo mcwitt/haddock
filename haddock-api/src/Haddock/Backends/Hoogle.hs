@@ -144,11 +144,17 @@ ppSigWithDoc dflags sig subdocs = case sig of
     PatSynSig _ names t -> concatMap (mkDocSig "pattern " (hsSigType t)) names
     _ -> []
   where
-    mkDocSig leader typ n = mkSubdoc dflags n subdocs
-                                     [leader ++ pp_sig dflags [n] typ]
+    mkDocSig leader typ n = mkSubdocN dflags n subdocs
+                                      [leader ++ pp_sigN dflags [n] typ]
 
 ppSig :: DynFlags -> Sig GhcRn -> [String]
 ppSig dflags x  = ppSigWithDoc dflags x []
+
+pp_sigN :: DynFlags -> [ApiAnnName Name] -> LHsType GhcRn -> String
+pp_sigN dflags names (L _ typ)  =
+    operator prettyNames ++ " :: " ++ outHsType dflags typ
+    where
+      prettyNames = intercalate ", " $ map (out dflags) names
 
 pp_sig :: DynFlags -> [LocatedA Name] -> LHsType GhcRn -> String
 pp_sig dflags names (L _ typ)  =
@@ -268,7 +274,7 @@ ppCtor dflags _dat subdocs con@(ConDeclGADT { })
         name = out dflags $ map unL $ getConNames con
 
 ppFixity :: DynFlags -> (Name, Fixity) -> [String]
-ppFixity dflags (name, fixity) = [out dflags ((FixitySig noExtField [noLocA name] fixity) :: FixitySig GhcRn)]
+ppFixity dflags (name, fixity) = [out dflags ((FixitySig noExtField [noApiName name] fixity) :: FixitySig GhcRn)]
 
 
 ---------------------------------------------------------------------
@@ -290,6 +296,9 @@ docWith dflags header d
   = ("":) $ zipWith (++) ("-- | " : repeat "--   ") $
     lines header ++ ["" | header /= "" && isJust d] ++
     maybe [] (showTags . markup (markupTag dflags)) d
+
+mkSubdocN :: DynFlags -> ApiAnnName Name -> [(Name, DocForDecl Name)] -> [String] -> [String]
+mkSubdocN dflags n subdocs s = mkSubdoc dflags (n2l n) subdocs s
 
 mkSubdoc :: DynFlags -> LocatedA Name -> [(Name, DocForDecl Name)] -> [String] -> [String]
 mkSubdoc dflags n subdocs s = concatMap (ppDocumentation dflags) getDoc ++ s

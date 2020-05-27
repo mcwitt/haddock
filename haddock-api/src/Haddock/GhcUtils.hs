@@ -23,7 +23,6 @@ import Data.Char ( isSpace )
 
 import Haddock.Types( DocName, DocNameI )
 
-import GHC.Utils.Exception
 import GHC.Utils.FV as FV
 import GHC.Utils.Outputable ( Outputable, panic, showPpr )
 import GHC.Types.Name
@@ -90,22 +89,22 @@ filterLSigNames p (L loc sig) = L loc <$> (filterSigNames p sig)
 
 filterSigNames :: (IdP (GhcPass p) -> Bool) -> Sig (GhcPass p) -> Maybe (Sig (GhcPass p))
 filterSigNames p orig@(SpecSig _ n _ _)          = ifTrueJust (p $ unLoc n) orig
-filterSigNames p orig@(InlineSig _ n _)          = ifTrueJust (p $ unLoc n) orig
+filterSigNames p orig@(InlineSig _ n _)          = ifTrueJust (p $ unApiName n) orig
 filterSigNames p (FixSig _ (FixitySig _ ns ty)) =
-  case filter (p . unLoc) ns of
+  case filter (p . unApiName) ns of
     []       -> Nothing
     filtered -> Just (FixSig noAnn (FixitySig noExtField filtered ty))
 filterSigNames _ orig@(MinimalSig _ _ _)      = Just orig
 filterSigNames p (TypeSig _ ns ty) =
-  case filter (p . unLoc) ns of
+  case filter (p . unApiName) ns of
     []       -> Nothing
     filtered -> Just (TypeSig noAnn filtered ty)
 filterSigNames p (ClassOpSig _ is_default ns ty) =
-  case filter (p . unLoc) ns of
+  case filter (p . unApiName) ns of
     []       -> Nothing
     filtered -> Just (ClassOpSig noAnn is_default filtered ty)
 filterSigNames p (PatSynSig _ ns ty) =
-  case filter (p . unLoc) ns of
+  case filter (p . unApiName) ns of
     []       -> Nothing
     filtered -> Just (PatSynSig noAnn filtered ty)
 filterSigNames _ _                             = Nothing
@@ -118,12 +117,12 @@ sigName :: LSig name -> [IdP name]
 sigName (L _ sig) = sigNameNoLoc sig
 
 sigNameNoLoc :: Sig name -> [IdP name]
-sigNameNoLoc (TypeSig    _   ns _)         = map unLoc ns
-sigNameNoLoc (ClassOpSig _ _ ns _)         = map unLoc ns
-sigNameNoLoc (PatSynSig  _   ns _)         = map unLoc ns
+sigNameNoLoc (TypeSig    _   ns _)         = map unApiName ns
+sigNameNoLoc (ClassOpSig _ _ ns _)         = map unApiName ns
+sigNameNoLoc (PatSynSig  _   ns _)         = map unApiName ns
 sigNameNoLoc (SpecSig    _   n _ _)        = [unLoc n]
-sigNameNoLoc (InlineSig  _   n _)          = [unLoc n]
-sigNameNoLoc (FixSig _ (FixitySig _ ns _)) = map unLoc ns
+sigNameNoLoc (InlineSig  _   n _)          = [unApiName n]
+sigNameNoLoc (FixSig _ (FixitySig _ ns _)) = map unApiName ns
 sigNameNoLoc _                             = []
 
 -- | Was this signature given by the user?
@@ -367,6 +366,8 @@ reparenConDeclField c@XConDeclField{} = c
 unL :: GenLocated l a -> a
 unL (L _ x) = x
 
+unN :: ApiAnnName a -> a
+unN (N _ x) = x
 
 reL :: a -> GenLocated l a
 reL = L undefined
@@ -381,6 +382,9 @@ instance NamedThing (TyClDecl GhcRn) where
 
 instance (NamedThing a) => NamedThing (LocatedA a) where
   getName (L _ a) = getName a
+
+instance (NamedThing a) => NamedThing (ApiAnnName a) where
+  getName (N _ a) = getName a
 
 -------------------------------------------------------------------------------
 -- * Subordinates
@@ -404,7 +408,7 @@ instance Parent (TyClDecl GhcRn) where
                               $ (dd_cons . tcdDataDefn) $ d
     | isClassDecl d =
         map (unL . fdLName . unL) (tcdATs d) ++
-        [ unL n | L _ (TypeSig _ ns _) <- tcdSigs d, n <- ns ]
+        [ unN n | L _ (TypeSig _ ns _) <- tcdSigs d, n <- ns ]
     | otherwise = []
 
 
