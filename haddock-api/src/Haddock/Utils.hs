@@ -146,7 +146,7 @@ addClassContext cls tvs0 (L pos (ClassOpSig _ _ lname ltype))
                          , hst_ctxt = add_ctxt ctxt, hst_body = ty })
     go (L loc ty)
        = L loc (HsQualTy { hst_xqual = noAnn
-                         , hst_ctxt = add_ctxt (L loc []), hst_body = L loc ty })
+                         , hst_ctxt = add_ctxt (L (l2l loc) []), hst_body = L loc ty })
 
     extra_pred = nlHsTyConApp Prefix cls (lHsQTyVarsToTypes tvs0)
     add_ctxt (L loc preds) = L loc (extra_pred : preds)

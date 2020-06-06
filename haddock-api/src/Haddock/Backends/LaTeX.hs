@@ -572,7 +572,7 @@ rDoc = maybeDoc . fmap latexStripTrailingWhitespace
 -------------------------------------------------------------------------------
 
 
-ppClassHdr :: Bool -> LocatedA [LHsType DocNameI] -> DocName
+ppClassHdr :: Bool -> LocatedC [LHsType DocNameI] -> DocName
            -> LHsQTyVars DocNameI -> [LHsFunDep DocNameI]
            -> Bool -> LaTeX
 ppClassHdr summ lctxt n tvs fds unicode =

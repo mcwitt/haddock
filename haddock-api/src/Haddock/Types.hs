@@ -384,7 +384,7 @@ mkPseudoFamilyDecl (FamilyDecl { .. }) = PseudoFamilyDecl
     mkType (KindedTyVar _ _ (N loc name) lkind) =
         HsKindSig noAnn tvar lkind
       where
-        tvar = L loc (HsTyVar noAnn NotPromoted (N loc name))
+        tvar = L (na2la loc) (HsTyVar noAnn NotPromoted (N loc name))
     mkType (UserTyVar _ _ name) = HsTyVar noAnn NotPromoted name
 
 
@@ -679,11 +679,11 @@ type instance XStarTy          DocNameI = ApiAnn
 type instance XAppTy           DocNameI = ApiAnn
 type instance XAppKindTy       DocNameI = ApiAnn
 type instance XFunTy           DocNameI = ApiAnn
-type instance XListTy          DocNameI = ApiAnn
-type instance XTupleTy         DocNameI = ApiAnn
-type instance XSumTy           DocNameI = ApiAnn
+type instance XListTy          DocNameI = ApiAnn' AnnParen
+type instance XTupleTy         DocNameI = ApiAnn' AnnParen
+type instance XSumTy           DocNameI = ApiAnn' AnnParen
 type instance XOpTy            DocNameI = ApiAnn
-type instance XParTy           DocNameI = ApiAnn
+type instance XParTy           DocNameI = ApiAnn' AnnParen
 type instance XIParamTy        DocNameI = ApiAnn
 type instance XKindSig         DocNameI = ApiAnn
 type instance XSpliceTy        DocNameI = ApiAnn

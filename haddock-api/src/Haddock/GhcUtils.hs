@@ -288,12 +288,12 @@ data Precedence
 --
 -- We cannot add parens that may be required by fixities because we do not have
 -- any fixity information to work with in the first place :(.
-reparenTypePrec :: (XParTy a ~ ApiAnn) => Precedence -> HsType a -> HsType a
+reparenTypePrec :: (XParTy a ~ ApiAnn' AnnParen) => Precedence -> HsType a -> HsType a
 reparenTypePrec = go
   where
 
   -- Shorter name for 'reparenType'
-  go :: (XParTy a ~ ApiAnn) => Precedence -> HsType a -> HsType a
+  go :: (XParTy a ~ ApiAnn' AnnParen) => Precedence -> HsType a -> HsType a
   go _ (HsBangTy x b ty)     = HsBangTy x b (reparenLType ty)
   go _ (HsTupleTy x con tys) = HsTupleTy x con (map reparenLType tys)
   go _ (HsSumTy x tys)       = HsSumTy x (map reparenLType tys)
@@ -326,11 +326,11 @@ reparenTypePrec = go
   go _ t@XHsType{} = t
 
   -- Located variant of 'go'
-  goL :: (XParTy a ~ ApiAnn) => Precedence -> LHsType a -> LHsType a
+  goL :: (XParTy a ~ ApiAnn' AnnParen) => Precedence -> LHsType a -> LHsType a
   goL ctxt_prec = fmap (go ctxt_prec)
 
   -- Optionally wrap a type in parens
-  paren :: (XParTy a ~ ApiAnn)
+  paren :: (XParTy a ~ ApiAnn' AnnParen)
         => Precedence            -- Precedence of context
         -> Precedence            -- Precedence of top-level operator
         -> HsType a -> HsType a  -- Wrap in parens if (ctxt >= op)
@@ -339,21 +339,21 @@ reparenTypePrec = go
 
 
 -- | Add parenthesis around the types in a 'HsType' (see 'reparenTypePrec')
-reparenType :: (XParTy a ~ ApiAnn) => HsType a -> HsType a
+reparenType :: (XParTy a ~ ApiAnn' AnnParen) => HsType a -> HsType a
 reparenType = reparenTypePrec PREC_TOP
 
 -- | Add parenthesis around the types in a 'LHsType' (see 'reparenTypePrec')
-reparenLType :: (XParTy a ~ ApiAnn) => LHsType a -> LHsType a
+reparenLType :: (XParTy a ~ ApiAnn' AnnParen) => LHsType a -> LHsType a
 reparenLType = fmap reparenType
 
 -- | Add parenthesis around the types in a 'HsTyVarBndr' (see 'reparenTypePrec')
-reparenTyVar :: (XParTy a ~ ApiAnn) => HsTyVarBndr flag a -> HsTyVarBndr flag a
+reparenTyVar :: (XParTy a ~ ApiAnn' AnnParen) => HsTyVarBndr flag a -> HsTyVarBndr flag a
 reparenTyVar (UserTyVar x flag n) = UserTyVar x flag n
 reparenTyVar (KindedTyVar x flag n kind) = KindedTyVar x flag n (reparenLType kind)
 reparenTyVar v@XTyVarBndr{} = v
 
 -- | Add parenthesis around the types in a 'ConDeclField' (see 'reparenTypePrec')
-reparenConDeclField :: (XParTy a ~ ApiAnn) => ConDeclField a -> ConDeclField a
+reparenConDeclField :: (XParTy a ~ ApiAnn' AnnParen) => ConDeclField a -> ConDeclField a
 reparenConDeclField (ConDeclField x n t d) = ConDeclField x n (reparenLType t) d
 reparenConDeclField c@XConDeclField{} = c
 

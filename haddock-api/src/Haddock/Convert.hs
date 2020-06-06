@@ -88,7 +88,7 @@ tyThingToLHsDecl prr t = case t of
 
            cvt (UserTyVar _ _ n) = HsTyVar noAnn NotPromoted n
            cvt (KindedTyVar _ _ (N name_loc n) kind) = HsKindSig noAnn
-              (L name_loc (HsTyVar noAnn NotPromoted (N name_loc n))) kind
+              (L (na2la name_loc) (HsTyVar noAnn NotPromoted (N name_loc n))) kind
            cvt (XTyVarBndr nec) = noExtCon nec
 
            -- | Convert a LHsTyVarBndr to an equivalent LHsType.
@@ -411,7 +411,7 @@ synifyDataCon use_gadt_syntax dc =
                          , con_doc    = Nothing }
 
 synifyNameN :: NamedThing n => n -> ApiAnnName Name
-synifyNameN n = N (noAnnSrcSpan $ srcLocSpan (getSrcLoc n)) (getName n)
+synifyNameN n = N (noAnnApiName $ srcLocSpan (getSrcLoc n)) (getName n)
 
 synifyName :: NamedThing n => n -> LocatedA Name
 synifyName n = L (noAnnSrcSpan $ srcLocSpan (getSrcLoc n)) (getName n)

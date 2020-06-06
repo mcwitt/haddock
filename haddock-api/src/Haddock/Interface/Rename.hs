@@ -315,7 +315,7 @@ renameLTyVarBndr (L loc (KindedTyVar _ fl (N lv n) kind))
        ; kind' <- renameLKind kind
        ; return (L loc (KindedTyVar noExtField fl (N lv n') kind')) }
 
-renameLContext :: LocatedA [LHsType GhcRn] -> RnM (LocatedA [LHsType DocNameI])
+renameLContext :: LocatedC [LHsType GhcRn] -> RnM (LocatedC [LHsType DocNameI])
 renameLContext (L loc context) = do
   context' <- mapM renameLType context
   return (L loc context')

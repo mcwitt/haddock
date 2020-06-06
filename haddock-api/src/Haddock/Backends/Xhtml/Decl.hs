@@ -482,7 +482,7 @@ ppHsContext cxt unicode qual = parenList (map (ppType unicode qual HideEmptyCont
 -------------------------------------------------------------------------------
 
 
-ppClassHdr :: Bool -> LocatedA [LHsType DocNameI] -> DocName
+ppClassHdr :: Bool -> LocatedC [LHsType DocNameI] -> DocName
            -> LHsQTyVars DocNameI -> [LHsFunDep DocNameI]
            -> Unicode -> Qualification -> Html
 ppClassHdr summ lctxt n tvs fds unicode qual =
