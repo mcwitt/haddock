@@ -416,7 +416,7 @@ mkMaps dflags pkgName gre instances decls = do
               -- The CoAx's loc is the whole line, but only for TFs. The
               -- workaround is to dig into the family instance declaration and
               -- get the identifier with the right location.
-              TyFamInstD _ (TyFamInstDecl d') -> getLocN (feqn_tycon (hsib_body d'))
+              TyFamInstD _ (TyFamInstDecl d') -> getLocA (feqn_tycon (hsib_body d'))
               _ -> getInstLoc d
     names l (DerivD {}) = maybeToList (M.lookup l instanceMap) -- See note [2].
     names _ decl = getMainDeclBinder decl
@@ -443,7 +443,7 @@ subordinates :: InstMap
 subordinates instMap decl = case decl of
   InstD _ (ClsInstD _ d) -> do
     DataFamInstDecl { dfid_eqn = HsIB { hsib_body =
-      FamEqn { feqn_tycon = N l _
+      FamEqn { feqn_tycon = L l _
              , feqn_rhs   = defn }}} <- unLoc <$> cid_datafam_insts d
     [ (n, [], M.empty) | Just n <- [SrcLoc.lookupSrcSpan (locA l) instMap] ] ++ dataSubs defn
 
@@ -460,7 +460,7 @@ subordinates instMap decl = case decl of
     dataSubs dd = constrs ++ fields ++ derivs
       where
         cons = map unL $ (dd_cons dd)
-        constrs = [ (unN cname, maybeToList $ fmap unL $ con_doc c, conArgDocs c)
+        constrs = [ (unL cname, maybeToList $ fmap unL $ con_doc c, conArgDocs c)
                   | c <- cons, cname <- getConNames c ]
         fields  = [ (extFieldOcc n, maybeToList $ fmap unL doc, M.empty)
                   | RecCon flds <- map getConArgs cons
@@ -542,7 +542,7 @@ mkFixMap :: HsGroup GhcRn -> FixMap
 mkFixMap group_ =
   M.fromList [ (n,f)
              | L _ (FixitySig _ ns f) <- hsGroupTopLevelFixitySigs group_,
-               N _ n <- ns ]
+               L _ n <- ns ]
 
 
 -- | Take all declarations except pragmas, infix decls, rules from an 'HsGroup'.
@@ -752,7 +752,7 @@ availExportItem is_sig modMap thisMod semMod warnings exportedNames
 
                   L loc (TyClD _ cl@ClassDecl{}) -> do
                     mdef <- liftGhcToErrMsgGhc $ minimalDef t
-                    let sig = maybeToList $ fmap (noLoc . MinimalSig noAnn NoSourceText . noLocA . fmap noApiName) mdef
+                    let sig = maybeToList $ fmap (noLoc . MinimalSig noAnn NoSourceText . noLocA . fmap noLocA) mdef
                     availExportDecl avail
                       (L loc $ TyClD noExtField cl { tcdSigs = sig ++ tcdSigs cl }) docs_
 
@@ -1061,7 +1061,7 @@ extractDecl declMap name decl
           matchesAssociatedType =
             [ lfam_decl
             | lfam_decl <- tcdATs d
-            , name == unApiName (fdLName (unLoc lfam_decl))
+            , name == unLoc (fdLName (unLoc lfam_decl))
             ]
 
             -- TODO: document fixity
@@ -1088,7 +1088,7 @@ extractDecl declMap name decl
         , Just (famInst:_) <- M.lookup name declMap
         -> extractDecl declMap name famInst
       InstD _ (DataFamInstD _ (DataFamInstDecl (HsIB { hsib_body =
-                             FamEqn { feqn_tycon = N _ n
+                             FamEqn { feqn_tycon = L _ n
                                     , feqn_pats  = tys
                                     , feqn_rhs   = defn }}))) ->
         if isDataConName name
@@ -1100,7 +1100,7 @@ extractDecl declMap name decl
                                           FamEqn { feqn_rhs   = dd
                                                  }
                                          })) <- insts
-                               , name `elem` map unApiName (concatMap (getConNames . unLoc) (dd_cons dd))
+                               , name `elem` map unLoc (concatMap (getConNames . unLoc) (dd_cons dd))
                                ]
             in case matches of
                 [d0] -> extractDecl declMap name (noLocA (InstD noExtField (DataFamInstD noExtField d0)))
@@ -1128,7 +1128,7 @@ extractPatternSyn nm t tvs cons =
     con:_ -> reLoc $ extract <$> con
  where
   matches :: LConDecl GhcRn -> Bool
-  matches (L _ con) = nm `elem` (unApiName <$> getConNames con)
+  matches (L _ con) = nm `elem` (unLoc <$> getConNames con)
   extract :: ConDecl GhcRn -> Sig GhcRn
   extract con =
     let args =
@@ -1142,14 +1142,14 @@ extractPatternSyn nm t tvs cons =
             ConDeclH98 { con_mb_cxt = Just cxt } -> noLocA (HsQualTy noAnn cxt typ)
             _ -> typ
         typ'' = noLocA (HsQualTy noAnn (noLocA []) typ')
-    in PatSynSig noAnn [noApiName nm] (mkEmptyImplicitBndrs typ'')
+    in PatSynSig noAnn [noLocA nm] (mkEmptyImplicitBndrs typ'')
 
   longArrow :: [LHsType GhcRn] -> LHsType GhcRn -> LHsType GhcRn
   longArrow inputs output = foldr (\x y -> noLocA (HsFunTy noAnn x y)) output inputs
 
   data_ty con
     | ConDeclGADT{} <- con = con_res_ty con
-    | otherwise = foldl' (\x y -> noLocA (mkAppTyArg x y)) (noLocA (HsTyVar noAnn NotPromoted (noApiName t))) tvs
+    | otherwise = foldl' (\x y -> noLocA (mkAppTyArg x y)) (noLocA (HsTyVar noAnn NotPromoted (noLocA t))) tvs
                     where mkAppTyArg :: LHsType GhcRn -> LHsTypeArg GhcRn -> HsType GhcRn
                           mkAppTyArg f (HsValArg ty) = HsAppTy noExtField f ty
                           mkAppTyArg f (HsTypeArg l ki) = HsAppKindTy l f ki
@@ -1162,7 +1162,7 @@ extractRecSel _ _ _ [] = error "extractRecSel: selector not found"
 extractRecSel nm t tvs (L _ con : rest) =
   case getConArgs con of
     RecCon (L _ fields) | ((l,L _ (ConDeclField _ _nn ty _)) : _) <- matching_fields fields ->
-      L l (TypeSig noAnn [noApiName nm] (mkEmptySigWcType (noLocA (HsFunTy noAnn data_ty (getBangType ty)))))
+      L l (TypeSig noAnn [noLocA nm] (mkEmptySigWcType (noLocA (HsFunTy noAnn data_ty (getBangType ty)))))
     _ -> extractRecSel nm t tvs rest
  where
   matching_fields :: [LConDeclField GhcRn] -> [(SrcSpan, LConDeclField GhcRn)]
@@ -1171,7 +1171,7 @@ extractRecSel nm t tvs (L _ con : rest) =
   data_ty
     -- ResTyGADT _ ty <- con_res con = ty
     | ConDeclGADT{} <- con = con_res_ty con
-    | otherwise = foldl' (\x y -> noLocA (mkAppTyArg x y)) (noLocA (HsTyVar noAnn NotPromoted (noApiName t))) tvs
+    | otherwise = foldl' (\x y -> noLocA (mkAppTyArg x y)) (noLocA (HsTyVar noAnn NotPromoted (noLocA t))) tvs
                    where mkAppTyArg :: LHsType GhcRn -> LHsTypeArg GhcRn -> HsType GhcRn
                          mkAppTyArg f (HsValArg ty) = HsAppTy noExtField f ty
                          mkAppTyArg f (HsTypeArg l ki) = HsAppKindTy l f ki

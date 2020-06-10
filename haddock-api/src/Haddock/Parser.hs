@@ -18,11 +18,10 @@ import Documentation.Haddock.Types
 
 import GHC.Driver.Session ( DynFlags )
 import GHC.Data.FastString   ( fsLit )
-import GHC.Hs.Extension ( unApiName )
 import GHC.Parser.Lexer ( mkPState, unP, ParseResult(POk) )
 import GHC.Parser       ( parseIdentifier )
 import GHC.Types.Name.Reader ( RdrName )
-import GHC.Types.SrcLoc ( mkRealSrcLoc )
+import GHC.Types.SrcLoc ( mkRealSrcLoc, unLoc )
 import GHC.Data.StringBuffer ( stringToStringBuffer )
 
 parseParas :: DynFlags -> Maybe Package -> String -> MetaDoc mod RdrName
@@ -37,5 +36,5 @@ parseIdent dflags str0 =
       realSrcLc = mkRealSrcLoc (fsLit "<unknown file>") 0 0
       pstate = mkPState dflags buffer realSrcLc
   in case unP parseIdentifier pstate of
-    POk _ name -> Just (unApiName name)
+    POk _ name -> Just (unLoc name)
     _ -> Nothing

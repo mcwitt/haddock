@@ -213,7 +213,7 @@ processExports (e : es) =
 isSimpleSig :: ExportItem DocNameI -> Maybe ([DocName], HsType DocNameI)
 isSimpleSig ExportDecl { expItemDecl = L _ (SigD _ (TypeSig _ lnames t))
                        , expItemMbDoc = (Documentation Nothing Nothing, argDocs) }
-  | Map.null argDocs = Just (map unApiName lnames, unLoc (hsSigWcType t))
+  | Map.null argDocs = Just (map unLoc lnames, unLoc (hsSigWcType t))
 isSimpleSig _ = Nothing
 
 
@@ -252,10 +252,10 @@ declNames :: LHsDecl DocNameI
              )
 declNames (L _ decl) = case decl of
   TyClD _ d  -> (empty, [tcdNameI d])
-  SigD _ (TypeSig _ lnames _ ) -> (empty, map unApiName lnames)
-  SigD _ (PatSynSig _ lnames _) -> (text "pattern", map unApiName lnames)
-  ForD _ (ForeignImport _ (N _ n) _ _) -> (empty, [n])
-  ForD _ (ForeignExport _ (N _ n) _ _) -> (empty, [n])
+  SigD _ (TypeSig _ lnames _ ) -> (empty, map unLoc lnames)
+  SigD _ (PatSynSig _ lnames _) -> (text "pattern", map unLoc lnames)
+  ForD _ (ForeignImport _ (L _ n) _ _) -> (empty, [n])
+  ForD _ (ForeignExport _ (L _ n) _ _) -> (empty, [n])
   _ -> error "declaration not supported by declNames"
 
 
@@ -296,8 +296,8 @@ ppDecl decl pats (doc, fnArgsDoc) instances subdocs _fxts = case unLoc decl of
 --    | Just _  <- tcdTyPats d    -> ppTyInst False loc doc d unicode
 -- Family instances happen via FamInst now
   TyClD _ d@ClassDecl{}          -> ppClassDecl instances doc subdocs d unicode
-  SigD _ (TypeSig _ lnames ty)   -> ppFunSig (doc, fnArgsDoc) (map unApiName lnames) (hsSigWcType ty) unicode
-  SigD _ (PatSynSig _ lnames ty) -> ppLPatSig (doc, fnArgsDoc) (map unApiName lnames) ty unicode
+  SigD _ (TypeSig _ lnames ty)   -> ppFunSig (doc, fnArgsDoc) (map unLoc lnames) (hsSigWcType ty) unicode
+  SigD _ (PatSynSig _ lnames ty) -> ppLPatSig (doc, fnArgsDoc) (map unLoc lnames) ty unicode
   ForD _ d                       -> ppFor (doc, fnArgsDoc) d unicode
   InstD _ _                      -> empty
   DerivD _ _                     -> empty
@@ -307,7 +307,7 @@ ppDecl decl pats (doc, fnArgsDoc) instances subdocs _fxts = case unLoc decl of
 
 
 ppFor :: DocForDecl DocName -> ForeignDecl DocNameI -> Bool -> LaTeX
-ppFor doc (ForeignImport _ (N _ name) typ _) unicode =
+ppFor doc (ForeignImport _ (L _ name) typ _) unicode =
   ppFunSig doc [name] (hsSigTypeI typ) unicode
 ppFor _ _ _ = error "ppFor error in Haddock.Backends.LaTeX"
 --  error "foreign declarations are currently not supported by --latex"
@@ -343,7 +343,7 @@ ppFamDecl doc instances decl unicode =
 
     -- Individual equations of a closed type family
     ppFamDeclEqn :: TyFamInstEqn DocNameI -> LaTeX
-    ppFamDeclEqn (HsIB { hsib_body = FamEqn { feqn_tycon = N _ n
+    ppFamDeclEqn (HsIB { hsib_body = FamEqn { feqn_tycon = L _ n
                                             , feqn_rhs = rhs
                                             , feqn_pats = ts } })
       = hsep [ ppAppNameTypeArgs n ts unicode
@@ -357,7 +357,7 @@ ppFamDecl doc instances decl unicode =
 ppFamHeader :: FamilyDecl DocNameI  -- ^ family header to print
               -> Bool                 -- ^ unicode
               -> LaTeX
-ppFamHeader (FamilyDecl { fdLName = N _ name
+ppFamHeader (FamilyDecl { fdLName = L _ name
                         , fdTyVars = tvs
                         , fdInfo = info
                         , fdResultSig = L _ result
@@ -380,9 +380,9 @@ ppFamHeader (FamilyDecl { fdLName = N _ name
     injAnn = case injectivity of
       Nothing -> empty
       Just (L _ (InjectivityAnn _ lhs rhs)) -> hsep ( decltt (text "|")
-                                                    : ppNDocName lhs
+                                                    : ppLDocName lhs
                                                     : arrow unicode
-                                                    : map ppNDocName rhs)
+                                                    : map ppLDocName rhs)
 
 
 
@@ -394,7 +394,7 @@ ppFamHeader (FamilyDecl { fdLName = N _ name
 -- we skip type patterns for now
 ppTySyn :: DocForDecl DocName -> TyClDecl DocNameI -> Bool -> LaTeX
 
-ppTySyn doc (SynDecl { tcdLName = N _ name, tcdTyVars = ltyvars
+ppTySyn doc (SynDecl { tcdLName = L _ name, tcdTyVars = ltyvars
                          , tcdRhs = ltype }) unicode
   = ppTypeOrFunSig (unLoc ltype) doc (full, hdr, char '=') unicode
   where
@@ -589,8 +589,8 @@ ppFds fds unicode =
     char '|' <+> hsep (punctuate comma (map (fundep . unLoc) fds))
   where
     fundep (FunDep _ vars1 vars2)
-                         = hsep (map (ppDocName . unApiName) vars1) <+> arrow unicode <+>
-                           hsep (map (ppDocName . unApiName) vars2)
+                         = hsep (map (ppDocName . unLoc) vars1) <+> arrow unicode <+>
+                           hsep (map (ppDocName . unLoc) vars2)
 
 
 ppClassDecl :: [DocInstance DocNameI]
@@ -606,7 +606,7 @@ ppClassDecl instances doc subdocs
       | null lsigs = hdr unicode
       | otherwise  = hdr unicode <+> keyword "where"
 
-    hdr = ppClassHdr False lctxt (unApiName lname) ltyvars lfds
+    hdr = ppClassHdr False lctxt (unLoc lname) ltyvars lfds
 
     body = catMaybes [documentationToLaTeX doc, body_]
 
@@ -621,7 +621,7 @@ ppClassDecl instances doc subdocs
       vcat  [ ppFunSig doc names (hsSigWcType typ) unicode
             | L _ (TypeSig _ lnames typ) <- lsigs
             , let doc = lookupAnySubdoc (head names) subdocs
-                  names = map unApiName lnames ]
+                  names = map unLoc lnames ]
               -- FIXME: is taking just the first name ok? Is it possible that
               -- there are different subdocs for different names in a single
               -- type signature?
@@ -748,9 +748,9 @@ ppSideBySideConstr subdocs unicode leader (L _ con) =
   where
     -- Find the name of a constructors in the decl (`getConName` always returns
     -- a non-empty list)
-    aConName = unApiName (head (getConNamesI con))
+    aConName = unLoc (head (getConNamesI con))
 
-    occ      = map (nameOccName . getName . unApiName) $ getConNamesI con
+    occ      = map (nameOccName . getName . unLoc) $ getConNamesI con
 
     ppOcc      = cat (punctuate comma (map ppBinder occ))
     ppOccInfix = cat (punctuate comma (map ppBinderInfix occ))
@@ -835,14 +835,14 @@ ppSideBySideConstr subdocs unicode leader (L _ con) =
     -- or also because we want Haddock to do the doc-parsing, not GHC.
     mbDoc = case getConNamesI con of
               [] -> panic "empty con_names"
-              (cn:_) -> lookup (unApiName cn) subdocs >>=
+              (cn:_) -> lookup (unLoc cn) subdocs >>=
                         fmap _doc . combineDocumentation . fst
 
 
 -- | Pretty-print a record field
 ppSideBySideField :: [(DocName, DocForDecl DocName)] -> Bool -> ConDeclField DocNameI ->  LaTeX
 ppSideBySideField subdocs unicode (ConDeclField _ names ltype _) =
-  decltt (cat (punctuate comma (map (ppBinder . rdrNameOcc . unApiName . rdrNameFieldOcc . unLoc) names))
+  decltt (cat (punctuate comma (map (ppBinder . rdrNameOcc . unLoc . rdrNameFieldOcc . unLoc) names))
     <+> dcolon unicode <+> ppLType unicode ltype) <-> rDoc mbDoc
   where
     -- don't use cd_fld_doc for same reason we don't use con_doc above
@@ -851,7 +851,7 @@ ppSideBySideField subdocs unicode (ConDeclField _ names ltype _) =
 
 
 -- | Pretty-print a bundled pattern synonym
-ppSideBySidePat :: [ApiAnnName DocName]   -- ^ pattern name(s)
+ppSideBySidePat :: [LocatedN DocName]   -- ^ pattern name(s)
                 -> LHsSigType DocNameI  -- ^ type of pattern(s)
                 -> DocForDecl DocName   -- ^ doc map
                 -> Bool                 -- ^ unicode
@@ -861,7 +861,7 @@ ppSideBySidePat lnames typ (doc, argDocs) unicode =
   $$ fieldPart
   where
     hasArgDocs = not $ Map.null argDocs
-    ppOcc = hsep (punctuate comma (map (ppDocBinder . unApiName) lnames))
+    ppOcc = hsep (punctuate comma (map (ppDocBinder . unLoc) lnames))
 
     decl | hasArgDocs = keyword "pattern" <+> ppOcc
          | otherwise = hsep [ keyword "pattern"
@@ -885,7 +885,7 @@ ppSideBySidePat lnames typ (doc, argDocs) unicode =
 -- | Print the LHS of a data\/newtype declaration.
 -- Currently doesn't handle 'data instance' decls or kind signatures
 ppDataHeader :: TyClDecl DocNameI -> Bool -> LaTeX
-ppDataHeader (DataDecl { tcdLName = N _ name, tcdTyVars = tyvars
+ppDataHeader (DataDecl { tcdLName = L _ name, tcdTyVars = tyvars
                        , tcdDataDefn = HsDataDefn { dd_ND = nd, dd_ctxt = ctxt } }) unicode
   = -- newtype or data
     (case nd of { NewType -> keyword "newtype"; DataType -> keyword "data" }) <+>
@@ -1015,16 +1015,16 @@ class RenderableBndrFlag flag where
   ppHsTyVarBndr :: Bool -> HsTyVarBndr flag DocNameI -> LaTeX
 
 instance RenderableBndrFlag () where
-  ppHsTyVarBndr _ (UserTyVar _ _ (N _ name)) = ppDocName name
-  ppHsTyVarBndr unicode (KindedTyVar _ _ (N _ name) kind) =
+  ppHsTyVarBndr _ (UserTyVar _ _ (L _ name)) = ppDocName name
+  ppHsTyVarBndr unicode (KindedTyVar _ _ (L _ name) kind) =
     parens (ppDocName name) <+> dcolon unicode <+> ppLKind unicode kind
 
 instance RenderableBndrFlag Specificity where
-  ppHsTyVarBndr _ (UserTyVar _ SpecifiedSpec (N _ name)) = ppDocName name
-  ppHsTyVarBndr _ (UserTyVar _ InferredSpec (N _ name)) = braces $ ppDocName name
-  ppHsTyVarBndr unicode (KindedTyVar _ SpecifiedSpec (N _ name) kind) =
+  ppHsTyVarBndr _ (UserTyVar _ SpecifiedSpec (L _ name)) = ppDocName name
+  ppHsTyVarBndr _ (UserTyVar _ InferredSpec (L _ name)) = braces $ ppDocName name
+  ppHsTyVarBndr unicode (KindedTyVar _ SpecifiedSpec (L _ name) kind) =
     parens (ppDocName name) <+> dcolon unicode <+> ppLKind unicode kind
-  ppHsTyVarBndr unicode (KindedTyVar _ InferredSpec (N _ name) kind) =
+  ppHsTyVarBndr unicode (KindedTyVar _ InferredSpec (L _ name) kind) =
     braces (ppDocName name) <+> dcolon unicode <+> ppLKind unicode kind
 
 ppLKind :: Bool -> LHsKind DocNameI -> LaTeX
@@ -1054,8 +1054,8 @@ ppr_mono_ty (HsFunTy _ ty1 ty2)   u
         , arrow u <+> ppr_mono_lty ty2 u ]
 
 ppr_mono_ty (HsBangTy _ b ty)     u = ppBang b <> ppLParendType u ty
-ppr_mono_ty (HsTyVar _ NotPromoted (N _ name)) _ = ppDocName name
-ppr_mono_ty (HsTyVar _ IsPromoted  (N _ name)) _ = char '\'' <> ppDocName name
+ppr_mono_ty (HsTyVar _ NotPromoted (L _ name)) _ = ppDocName name
+ppr_mono_ty (HsTyVar _ IsPromoted  (L _ name)) _ = char '\'' <> ppDocName name
 ppr_mono_ty (HsTupleTy _ con tys) u = tupleParens con (map (ppLType u) tys)
 ppr_mono_ty (HsSumTy _ tys) u       = sumParens (map (ppLType u) tys)
 ppr_mono_ty (HsKindSig _ ty kind) u = parens (ppr_mono_lty ty u <+> dcolon u <+> ppLKind u kind)
@@ -1077,8 +1077,8 @@ ppr_mono_ty (HsAppKindTy _ fun_ty arg_ki) unicode
 ppr_mono_ty (HsOpTy _ ty1 op ty2) unicode
   = ppr_mono_lty ty1 unicode <+> ppr_op <+> ppr_mono_lty ty2 unicode
   where
-    ppr_op | isSymOcc (getOccName op) = ppNDocName op
-           | otherwise = char '`' <> ppNDocName op <> char '`'
+    ppr_op | isSymOcc (getOccName op) = ppLDocName op
+           | otherwise = char '`' <> ppLDocName op <> char '`'
 
 ppr_mono_ty (HsParTy _ ty) unicode
   = parens (ppr_mono_lty ty unicode)
@@ -1143,11 +1143,8 @@ ppDocName :: DocName -> LaTeX
 ppDocName = ppOccName . nameOccName . getName
 
 
-ppLDocName :: LocatedA DocName -> LaTeX
+ppLDocName :: GenLocated l DocName -> LaTeX
 ppLDocName (L _ d) = ppDocName d
-
-ppNDocName :: ApiAnnName DocName -> LaTeX
-ppNDocName (N _ d) = ppDocName d
 
 
 ppDocBinder :: DocName -> LaTeX

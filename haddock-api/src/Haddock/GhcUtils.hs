@@ -61,7 +61,7 @@ getMainDeclBinder (ValD _ d) =
     []       -> []
     (name:_) -> [name]
 getMainDeclBinder (SigD _ d) = sigNameNoLoc d
-getMainDeclBinder (ForD _ (ForeignImport _ name _ _)) = [unApiName name]
+getMainDeclBinder (ForD _ (ForeignImport _ name _ _)) = [unLoc name]
 getMainDeclBinder (ForD _ (ForeignExport _ _ _ _)) = []
 getMainDeclBinder _ = []
 
@@ -71,7 +71,7 @@ getMainDeclBinder _ = []
 getInstLoc :: InstDecl (GhcPass p) -> SrcSpan
 getInstLoc (ClsInstD _ (ClsInstDecl { cid_poly_ty = ty })) = getLocA (hsSigType ty)
 getInstLoc (DataFamInstD _ (DataFamInstDecl
-  { dfid_eqn = HsIB { hsib_body = FamEqn { feqn_tycon = N l _ }}})) = locA l
+  { dfid_eqn = HsIB { hsib_body = FamEqn { feqn_tycon = L l _ }}})) = locA l
 getInstLoc (TyFamInstD _ (TyFamInstDecl
   -- Since CoAxioms' Names refer to the whole line for type family instances
   -- in particular, we need to dig a bit deeper to pull out the entire
@@ -88,23 +88,23 @@ filterLSigNames :: (IdP (GhcPass p) -> Bool) -> LSig (GhcPass p) -> Maybe (LSig 
 filterLSigNames p (L loc sig) = L loc <$> (filterSigNames p sig)
 
 filterSigNames :: (IdP (GhcPass p) -> Bool) -> Sig (GhcPass p) -> Maybe (Sig (GhcPass p))
-filterSigNames p orig@(SpecSig _ n _ _)          = ifTrueJust (p $ unApiName n) orig
-filterSigNames p orig@(InlineSig _ n _)          = ifTrueJust (p $ unApiName n) orig
+filterSigNames p orig@(SpecSig _ n _ _)          = ifTrueJust (p $ unLoc n) orig
+filterSigNames p orig@(InlineSig _ n _)          = ifTrueJust (p $ unLoc n) orig
 filterSigNames p (FixSig _ (FixitySig _ ns ty)) =
-  case filter (p . unApiName) ns of
+  case filter (p . unLoc) ns of
     []       -> Nothing
     filtered -> Just (FixSig noAnn (FixitySig noExtField filtered ty))
 filterSigNames _ orig@(MinimalSig _ _ _)      = Just orig
 filterSigNames p (TypeSig _ ns ty) =
-  case filter (p . unApiName) ns of
+  case filter (p . unLoc) ns of
     []       -> Nothing
     filtered -> Just (TypeSig noAnn filtered ty)
 filterSigNames p (ClassOpSig _ is_default ns ty) =
-  case filter (p . unApiName) ns of
+  case filter (p . unLoc) ns of
     []       -> Nothing
     filtered -> Just (ClassOpSig noAnn is_default filtered ty)
 filterSigNames p (PatSynSig _ ns ty) =
-  case filter (p . unApiName) ns of
+  case filter (p . unLoc) ns of
     []       -> Nothing
     filtered -> Just (PatSynSig noAnn filtered ty)
 filterSigNames _ _                             = Nothing
@@ -117,12 +117,12 @@ sigName :: LSig name -> [IdP name]
 sigName (L _ sig) = sigNameNoLoc sig
 
 sigNameNoLoc :: Sig name -> [IdP name]
-sigNameNoLoc (TypeSig    _   ns _)         = map unApiName ns
-sigNameNoLoc (ClassOpSig _ _ ns _)         = map unApiName ns
-sigNameNoLoc (PatSynSig  _   ns _)         = map unApiName ns
-sigNameNoLoc (SpecSig    _   n _ _)        = [unApiName n]
-sigNameNoLoc (InlineSig  _   n _)          = [unApiName n]
-sigNameNoLoc (FixSig _ (FixitySig _ ns _)) = map unApiName ns
+sigNameNoLoc (TypeSig    _   ns _)         = map unLoc ns
+sigNameNoLoc (ClassOpSig _ _ ns _)         = map unLoc ns
+sigNameNoLoc (PatSynSig  _   ns _)         = map unLoc ns
+sigNameNoLoc (SpecSig    _   n _ _)        = [unLoc n]
+sigNameNoLoc (InlineSig  _   n _)          = [unLoc n]
+sigNameNoLoc (FixSig _ (FixitySig _ ns _)) = map unLoc ns
 sigNameNoLoc _                             = []
 
 -- | Was this signature given by the user?
@@ -161,13 +161,13 @@ nubByName f ns = go emptyNameSet ns
 -- instantiated at DocNameI instead of (GhcPass _).
 
 hsTyVarNameI :: HsTyVarBndr flag DocNameI -> DocName
-hsTyVarNameI (UserTyVar _ _ (N _ n))     = n
-hsTyVarNameI (KindedTyVar _ _ (N _ n) _) = n
+hsTyVarNameI (UserTyVar _ _ (L _ n))     = n
+hsTyVarNameI (KindedTyVar _ _ (L _ n) _) = n
 
 hsLTyVarNameI :: LHsTyVarBndr flag DocNameI -> DocName
 hsLTyVarNameI = hsTyVarNameI . unLoc
 
-getConNamesI :: ConDecl DocNameI -> [ApiAnnName DocName]
+getConNamesI :: ConDecl DocNameI -> [LocatedN DocName]
 getConNamesI ConDeclH98  {con_name  = name}  = [name]
 getConNamesI ConDeclGADT {con_names = names} = names
 
@@ -217,21 +217,21 @@ getMainDeclBinderI (ValD _ d) =
     []       -> []
     (name:_) -> [name]
 getMainDeclBinderI (SigD _ d) = sigNameNoLoc d
-getMainDeclBinderI (ForD _ (ForeignImport _ name _ _)) = [unApiName name]
+getMainDeclBinderI (ForD _ (ForeignImport _ name _ _)) = [unLoc name]
 getMainDeclBinderI (ForD _ (ForeignExport _ _ _ _)) = []
 getMainDeclBinderI _ = []
 
-familyDeclLNameI :: FamilyDecl DocNameI -> ApiAnnName DocName
+familyDeclLNameI :: FamilyDecl DocNameI -> LocatedN DocName
 familyDeclLNameI (FamilyDecl { fdLName = n }) = n
 
-tyClDeclLNameI :: TyClDecl DocNameI -> ApiAnnName DocName
+tyClDeclLNameI :: TyClDecl DocNameI -> LocatedN DocName
 tyClDeclLNameI (FamDecl { tcdFam = fd })     = familyDeclLNameI fd
 tyClDeclLNameI (SynDecl { tcdLName = ln })   = ln
 tyClDeclLNameI (DataDecl { tcdLName = ln })  = ln
 tyClDeclLNameI (ClassDecl { tcdLName = ln }) = ln
 
 tcdNameI :: TyClDecl DocNameI -> DocName
-tcdNameI = unApiName . tyClDeclLNameI
+tcdNameI = unLoc . tyClDeclLNameI
 
 -- -------------------------------------
 
@@ -369,14 +369,8 @@ reparenConDeclField c@XConDeclField{} = c
 unL :: GenLocated l a -> a
 unL (L _ x) = x
 
-unN :: ApiAnnName a -> a
-unN (N _ x) = x
-
 reL :: a -> GenLocated l a
 reL = L undefined
-
-reN :: a -> ApiAnnName a
-reN = N undefined
 
 -------------------------------------------------------------------------------
 -- * NamedThing instances
@@ -389,8 +383,8 @@ instance NamedThing (TyClDecl GhcRn) where
 instance (NamedThing a) => NamedThing (LocatedA a) where
   getName (L _ a) = getName a
 
-instance (NamedThing a) => NamedThing (ApiAnnName a) where
-  getName (N _ a) = getName a
+instance (NamedThing a) => NamedThing (LocatedN a) where
+  getName (L _ a) = getName a
 
 -------------------------------------------------------------------------------
 -- * Subordinates
@@ -410,11 +404,11 @@ instance Parent (ConDecl GhcRn) where
 
 instance Parent (TyClDecl GhcRn) where
   children d
-    | isDataDecl  d = map unN $ concatMap (getConNames . unL)
+    | isDataDecl  d = map unL $ concatMap (getConNames . unL)
                               $ (dd_cons . tcdDataDefn) $ d
     | isClassDecl d =
-        map (unN . fdLName . unL) (tcdATs d) ++
-        [ unN n | L _ (TypeSig _ ns _) <- tcdSigs d, n <- ns ]
+        map (unL . fdLName . unL) (tcdATs d) ++
+        [ unL n | L _ (TypeSig _ ns _) <- tcdSigs d, n <- ns ]
     | otherwise = []
 
 
@@ -424,7 +418,7 @@ family = getName &&& children
 
 
 familyConDecl :: ConDecl GHC.GhcRn -> [(Name, [Name])]
-familyConDecl d = zip (map unN (getConNames d)) (repeat $ children d)
+familyConDecl d = zip (map unL (getConNames d)) (repeat $ children d)
 
 -- | A mapping from the parent (main-binder) to its children and from each
 -- child to its grand-children, recursively.
